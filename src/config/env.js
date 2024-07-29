@@ -201,8 +201,6 @@ class Environment {
 export const ENV = new Environment();
 // KV Namespace Bindings: Bind an instance of a KV Namespace to access its data in a Worker
 export let DATABASE = null;
-// Service Bindings: Bind to another Worker to invoke it directly from your code.
-export let API_GUARD = null;
 
 export const CUSTOM_COMMAND = {};
 export const CUSTOM_COMMAND_DESCRIPTION = {};

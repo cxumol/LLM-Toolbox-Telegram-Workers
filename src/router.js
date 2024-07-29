@@ -31,9 +31,8 @@ function buildKeyNotFoundHTML(key) {
 async function bindWebHookAction(request) {
     const result = [];
     const domain = new URL(request.url).host;
-    const hookMode = API_GUARD ? 'safehook' : 'webhook';
     for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
-        const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
+        const url = `https://${domain}/telegram/${token.trim()}/webhook`;
         const id = token.split(':')[0];
         result[id] = {
             webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),
@@ -76,29 +75,6 @@ async function telegramWebhook(request) {
     }
 }
 
-
-/**
- *
- * 用API_GUARD处理Telegram回调
- *
- * @param {Request} request
- * @return {Promise<Response>}
- */
-async function telegramSafeHook(request) {
-    try {
-        if (API_GUARD === undefined || API_GUARD === null) {
-            return telegramWebhook(request);
-        }
-        console.log('API_GUARD is enabled');
-        const url = new URL(request.url);
-        url.pathname = url.pathname.replace('/safehook', '/webhook');
-        request = new Request(url, request);
-        return await makeResponse200(await API_GUARD.fetch(request));
-    } catch (e) {
-        console.error(e);
-        return new Response(errorToString(e), {status: 200});
-    }
-}
 
 /**
  * @return {Promise<Response>}
@@ -166,9 +142,6 @@ export async function handleRequest(request) {
     }
     if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/webhook`)) {
         return telegramWebhook(request);
-    }
-    if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/safehook`)) {
-        return telegramSafeHook(request);
     }
 
     if (ENV.DEV_MODE || ENV.DEBUG_MODE) {
