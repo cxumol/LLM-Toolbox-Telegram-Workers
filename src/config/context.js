@@ -30,7 +30,7 @@ class ShareContext {
     currentBotId = null;
     currentBotToken = null;
     currentBotName = null;
-    chatHistoryKey = null;
+    // chatHistoryKey = null;
     chatLastMessageIdKey = null;
     configStoreKey = null;
     groupAdminKey = null;
@@ -149,18 +149,18 @@ export class Context {
       * */
 
         const botId = this.SHARE_CONTEXT.currentBotId;
-        let historyKey = `history:${id}`;
+        // let historyKey = `history:${id}`;
         let configStoreKey = `user_config:${id}`;
         let groupAdminKey = null;
 
         if (botId) {
-            historyKey += `:${botId}`;
+            // historyKey += `:${botId}`;
             configStoreKey += `:${botId}`;
         }
         // 标记群组消息
         if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
             if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
-                historyKey += `:${message.from.id}`;
+                // historyKey += `:${message.from.id}`;
                 configStoreKey += `:${message.from.id}`;
             }
             groupAdminKey = `group_admin:${id}`;
@@ -169,13 +169,13 @@ export class Context {
         // 判断是否为话题模式
         if (message?.chat?.is_forum && message?.is_topic_message) {
             if (message?.message_thread_id) {
-                historyKey += `:${message.message_thread_id}`;
+                // historyKey += `:${message.message_thread_id}`;
                 configStoreKey += `:${message.message_thread_id}`;
             }
         }
 
-        this.SHARE_CONTEXT.chatHistoryKey = historyKey;
-        this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
+        // this.SHARE_CONTEXT.chatHistoryKey = historyKey;
+        // this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
         this.SHARE_CONTEXT.configStoreKey = configStoreKey;
         this.SHARE_CONTEXT.groupAdminKey = groupAdminKey;
 
