@@ -18,31 +18,19 @@ function tokensCounter() {
 
 
 
-/**
- * @typedef {object} LlmModifierResult
- * @property {HistoryItem[]} history
- * @property {string} message
- *
- * @typedef {function(HistoryItem[], string): LlmModifierResult} LlmModifier
- */
 
 /**
  *
  * @param {LlmRequestParams} params
  * @param {ContextType} context
  * @param {ChatAgentRequest} llm
- * @param {LlmModifier} modifier
  * @param {function(string)} onStream
  * @return {Promise<string>}
  */
-async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
+async function requestCompletionsFromLLM(params, context, llm, onStream) {
 
     const { message } = params;
 
-    if (modifier) {
-        const modifierData = modifier(history, message);
-        params.message = modifierData.message;
-    }
     const llmParams = {
         ...params,
         prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE,
@@ -56,10 +44,9 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
  *
  * @param {LlmRequestParams} params
  * @param {ContextType} context
- * @param {LlmModifier} modifier
  * @return {Promise<Response>}
  */
-export async function chatWithLLM(params, context, modifier) {
+export async function chatWithLLM(params, context) {
     try {
         try {
             const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
@@ -104,7 +91,7 @@ export async function chatWithLLM(params, context, modifier) {
         if (llm === null) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
-        const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
+        const answer = await requestCompletionsFromLLM(params, context, llm, onStream);
         context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
         if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
             try {
