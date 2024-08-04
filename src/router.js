@@ -1,5 +1,5 @@
 import {handleMessage} from './telegram/message.js';
-import {API_GUARD, ENV} from './config/env.js';
+import {ENV} from './config/env.js';
 import {bindCommandForTelegram, commandsDocument} from './telegram/command.js';
 import {bindTelegramWebHook, getBot} from './telegram/telegram.js';
 import {errorToString, makeResponse200, renderHTML} from './utils/utils.js';
