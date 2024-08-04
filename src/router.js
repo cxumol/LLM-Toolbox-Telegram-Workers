@@ -9,18 +9,14 @@ const helpLink = 'https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master
 const issueLink = 'https://github.com/TBXark/ChatGPT-Telegram-Workers/issues';
 const initLink = './init';
 
-const footer = `
-<br/>
-<p>For more information, please visit <a href="${helpLink}">${helpLink}</a></p>
-<p>If you have any questions, please visit <a href="${issueLink}">${issueLink}</a></p>
-`;
+const footer = ``;
 
 /**
  * @param {string} key
  * @return {string}
  */
 function buildKeyNotFoundHTML(key) {
-    return `<p style="color: red">Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.</p> `;
+    return `Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.`;
 }
 
 /**
@@ -41,23 +37,20 @@ async function bindWebHookAction(request) {
     }
 
     const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <h2>${domain}</h2>
+    ${domain}
     ${
         ENV.TELEGRAM_AVAILABLE_TOKENS.length === 0 ? buildKeyNotFoundHTML('TELEGRAM_AVAILABLE_TOKENS') : ''
     }
     ${
         Object.keys(result).map((id) => `
-        <br/>
-        <h4>Bot ID: ${id}</h4>
-        <p style="color: ${result[id].webhook.ok ? 'green' : 'red'}">Webhook: ${JSON.stringify(result[id].webhook)}</p>
-        <p style="color: ${result[id].command.ok ? 'green' : 'red'}">Command: ${JSON.stringify(result[id].command)}</p>
+        Bot ID: ${id}
+        Webhook: ${JSON.stringify(result[id].webhook)}
+        Command: ${JSON.stringify(result[id].command)}
         `).join('')
-
     }
       ${footer}
     `);
-    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/html'}});
+    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/plain'}});
 }
 
 
@@ -81,23 +74,11 @@ async function telegramWebhook(request) {
  */
 async function defaultIndexAction() {
     const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <br/>
-    <p>Deployed Successfully!</p>
-    <p> Version (ts:${ENV.BUILD_TIMESTAMP},sha:${ENV.BUILD_VERSION})</p>
-    <br/>
-    <p>You must <strong><a href="${initLink}"> >>>>> click here <<<<< </a></strong> to bind the webhook.</p>
-    <br/>
-    <p>After binding the webhook, you can use the following commands to control the bot:</p>
-    ${
-        commandsDocument().map((item) => `<p><strong>${item.command}</strong> - ${item.description}</p>`).join('')
-    }
-    <br/>
-    <p>You can get bot information by visiting the following URL:</p>
-    <p><strong>/telegram/:token/bot</strong> - Get bot information</p>
-    ${footer}
+    OK!
+    Version (ts:${ENV.BUILD_TIMESTAMP},sha:${ENV.BUILD_VERSION})
+    Bind webhook ${initLink}
   `);
-    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/html'}});
+    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/plain'}});
 }
 
 /**
@@ -110,22 +91,17 @@ async function loadBotInfo() {
         result[id] = await getBot(token);
     }
     const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <br/>
-    <h4>Environment About Bot</h4>
-    <p><strong>GROUP_CHAT_BOT_ENABLE:</strong> ${ENV.GROUP_CHAT_BOT_ENABLE}</p>
-    <p><strong>GROUP_CHAT_BOT_SHARE_MODE:</strong> ${ENV.GROUP_CHAT_BOT_SHARE_MODE}</p>
-    <p><strong>TELEGRAM_BOT_NAME:</strong> ${ENV.TELEGRAM_BOT_NAME.join(',')}</p>
-    ${
-        Object.keys(result).map((id) => `
-            <br/>
-            <h4>Bot ID: ${id}</h4>
-            <p style="color: ${result[id].ok ? 'green' : 'red'}">${JSON.stringify(result[id])}</p>
-            `).join('')
-    }
-    ${footer}
+    Bot Info (Env)
+    GROUP_CHAT_BOT_ENABLE: ${ENV.GROUP_CHAT_BOT_ENABLE}
+    GROUP_CHAT_BOT_SHARE_MODE: ${ENV.GROUP_CHAT_BOT_SHARE_MODE}
+    TELEGRAM_BOT_NAME: ${ENV.TELEGRAM_BOT_NAME.join(',')}
+    
+    ${Object.keys(result).map((id) => `
+    Bot ID: ${id}
+    ${JSON.stringify(result[id])}
+    `).join('')}
   `);
-    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/html'}});
+    return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/plain'}});
 }
 
 /**
