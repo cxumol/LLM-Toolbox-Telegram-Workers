@@ -21,49 +21,6 @@ async function msgInitChatContext(message, context) {
 }
 
 
-/**
- * 保存最后一条消息
- *
- * @param {TelegramMessage} message
- * @param {ContextType} context
- * @return {Promise<Response>}
- */
-async function msgSaveLastMessage(message, context) {
-    if (ENV.DEBUG_MODE) {
-        const lastMessageKey = `last_message:${context.SHARE_CONTEXT.chatHistoryKey}`;
-        await DATABASE.put(lastMessageKey, JSON.stringify(message), {expirationTtl: 3600});
-    }
-    return null;
-}
-
-/**
- * 忽略旧的消息
- *
- * @param {TelegramMessage} message
- * @param {ContextType} context
- * @return {Promise<Response>}
- */
-async function msgIgnoreOldMessage(message, context) {
-    if (ENV.SAFE_MODE) {
-        let idList = [];
-        try {
-            idList = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.chatLastMessageIdKey).catch(() => '[]')) || [];
-        } catch (e) {
-            console.error(e);
-        }
-        // 保存最近的100条消息，如果存在则忽略，如果不存在则保存
-        if (idList.includes(message.message_id)) {
-            throw new Error('Ignore old message');
-        } else {
-            idList.push(message.message_id);
-            if (idList.length > 100) {
-                idList.shift();
-            }
-            await DATABASE.put(context.SHARE_CONTEXT.chatLastMessageIdKey, JSON.stringify(idList));
-        }
-    }
-    return null;
-}
 
 /**
  * 检查环境变量是否设置
@@ -300,16 +257,12 @@ export async function handleMessage(request) {
         msgInitChatContext,
         // 检查环境是否准备好: DATABASE
         msgCheckEnvIsReady,
-        // DEBUG: 保存最后一条消息
-        msgSaveLastMessage,
         // 过滤不支持的消息(抛出异常结束消息处理：当前只支持文本消息)
         msgFilterUnsupportedMessage,
         // 处理群消息，判断是否需要响应此条消息
         msgHandleGroupMessage,
         // 过滤非白名单用户
         msgFilterWhiteList,
-        // 忽略旧消息
-        msgIgnoreOldMessage,
         // 处理命令消息
         msgHandleCommand,
         // 与llm聊天

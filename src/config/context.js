@@ -30,7 +30,6 @@ class ShareContext {
     currentBotId = null;
     currentBotToken = null;
     currentBotName = null;
-    chatLastMessageIdKey = null;
     configStoreKey = null;
     groupAdminKey = null;
     usageKey = null;

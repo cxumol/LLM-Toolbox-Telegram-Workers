@@ -54,8 +54,6 @@
  * @property {string | null} currentBotId - 当前机器人 ID
  * @property {string | null} currentBotToken - 当前机器人 Token
  * @property {string | null} currentBotName - 当前机器人名称: xxx_bot
- * @property {string | null} chatHistoryKey - history:chat_id:bot_id:$from_id
- * @property {string | null} chatLastMessageIdKey - last_message_id:$chatHistoryKey
  * @property {string | null} configStoreKey - user_config:chat_id:bot_id:$from_id
  * @property {string | null} groupAdminKey - group_admin:group_id
  * @property {string | null} usageKey - usage:bot_id
