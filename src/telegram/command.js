@@ -14,7 +14,7 @@ import {
     sendMessageToTelegramWithContext,
     sendPhotoToTelegramWithContext,
 } from './telegram.js';
-import {chatWithLLM} from '../agent/llm.js';
+import {actWithLLM} from '../agent/llm.js';
 import {
     chatModelKey,
     currentChatModel,
@@ -26,7 +26,7 @@ import {
 import {trimUserConfig} from "../config/context.js";
 
 
-const commandAuthCheck = {
+const commandAuthCheck = { 
     default: function (chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
             return ['administrator', 'creator'];
@@ -35,7 +35,7 @@ const commandAuthCheck = {
     },
     shareModeGroup: function (chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
-            // 每个人在群里有上下文的时候，不限制
+            // 每个人在群里有上下文的时候，不限制; 但是在群里没有shared上下文的时候，需要管理员权限
             if (!ENV.GROUP_CHAT_BOT_SHARE_MODE) {
                 return false;
             }
@@ -47,8 +47,7 @@ const commandAuthCheck = {
 
 
 const commandSortList = [
-    '/new',
-    '/redo',
+    '/act',
     '/img',
     '/setenv',
     '/delenv',
@@ -57,21 +56,38 @@ const commandSortList = [
     '/help',
 ];
 
+/*
+scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
+fn: commandCreateNewChatContext,
+needAuth: commandAuthCheck.default 需要群管权限, commandAuthCheck.shareModeGroup, 每个人在群里有上下文的时候，不限制; 但是在群里没有shared上下文的时候，需要管理员权限
+*/ 
+
 // 命令绑定
 const commandHandlers = {
     '/help': {
         scopes: ['all_private_chats', 'all_chat_administrators'],
         fn: commandGetHelp,
     },
-    '/new': {
-        scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
-        fn: commandCreateNewChatContext,
-        needAuth: commandAuthCheck.shareModeGroup,
-    },
     '/start': {
         scopes: [],
-        fn: commandCreateNewChatContext,
-        needAuth: commandAuthCheck.default,
+        fn: commandGetHelp,
+    },
+    '/act': {
+        scopes: [],
+        fn: commandActUndefined,
+        needAuth: commandAuthCheck.shareModeGroup,
+    },
+    '/act_flatter': {
+        scopes: [],
+        fn: commandActWithLLM,
+        needAuth: commandAuthCheck.shareModeGroup,
+        act: 'flatter',
+    },
+    '/act_criticize': {
+        scopes: [],
+        fn: commandActWithLLM,
+        needAuth: commandAuthCheck.shareModeGroup,
+        act: 'criticize',
     },
     '/img': {
         scopes: ['all_private_chats', 'all_chat_administrators'],
@@ -107,11 +123,6 @@ const commandHandlers = {
         scopes: ['all_private_chats', 'all_chat_administrators'],
         fn: commandSystem,
         needAuth: commandAuthCheck.default,
-    },
-    '/redo': {
-        scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
-        fn: commandRegenerate,
-        needAuth: commandAuthCheck.shareModeGroup,
     },
 };
 
@@ -163,7 +174,7 @@ async function commandGetHelp(message, command, subcommand, context) {
 }
 
 /**
- * /new /start 新的会话
+ * /act 新的动作
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -171,22 +182,49 @@ async function commandGetHelp(message, command, subcommand, context) {
  * @param {ContextType} context
  * @return {Promise<Response>}
  */
-async function commandCreateNewChatContext(message, command, subcommand, context) {
+async function commandActUndefined(message, command, subcommand, context) {
     try {
-        await DATABASE.delete(context.SHARE_CONTEXT.chatHistoryKey);
         context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
             remove_keyboard: true,
             selective: true,
         });
-        if (command === '/new') {
-            return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.new_chat_start);
+        if (command === '/act') {
+            return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.act);
         } else {
-            return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
+            return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.act}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
         }
     } catch (e) {
         return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     }
 }
+
+/**
+ * /act_{action} 执行动作
+ * 
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {ContextType} context
+ * @return {Promise<Response>}
+ */
+async function commandActWithLLM(message, command, subcommand, context) {
+    const _act = commandHandlers[command]?.act;
+    const act = typeof _act === "string" ? ENV.I18N.acts[_act] : _act;
+    if (!act) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
+    }
+    let text = subcommand.trim();
+    if (message.reply_to_message){
+        text = message.reply_to_message.text;
+    }
+    /* insert EXTRA_MESSAGE_CONTEXT if exists */
+    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
+        text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
+    }
+    console.log("Act with LLM: ", act, text);
+    return actWithLLM({message: text, prompt: act.prompt}, context);
+}
+
 
 
 /**
@@ -398,40 +436,6 @@ async function commandSystem(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(msg);
 }
 
-/**
- * /redo 重新生成上一条消息
- *
- * @param {TelegramMessage} message
- * @param {string} command
- * @param {string} subcommand
- * @param {ContextType} context
- * @return {Promise<Response>}
- */
-async function commandRegenerate(message, command, subcommand, context) {
-    const mf = (history, text) => {
-        let nextText = text;
-        if (!(history && Array.isArray(history) && history.length > 0)) {
-            throw new Error('History not found');
-        }
-        const historyCopy = structuredClone(history);
-        while (true) {
-            const data = historyCopy.pop();
-            if (data === undefined || data === null) {
-                break;
-            } else if (data.role === 'user') {
-                if (text === '' || text === undefined || text === null) {
-                    nextText = data.content;
-                }
-                break;
-            }
-        }
-        if (subcommand) {
-            nextText = subcommand;
-        }
-        return {history: historyCopy, message: nextText};
-    };
-    return chatWithLLM({message: null}, context, mf);
-}
 
 /**
  * /echo 回显消息

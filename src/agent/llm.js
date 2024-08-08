@@ -20,6 +20,7 @@ function tokensCounter() {
 
 
 /**
+ * lower level llm call
  *
  * @param {LlmRequestParams} params
  * @param {ContextType} context
@@ -29,11 +30,11 @@ function tokensCounter() {
  */
 async function requestCompletionsFromLLM(params, context, llm, onStream) {
 
-    const { message } = params;
+    // const { message, prompt } = params;
 
     const llmParams = {
         ...params,
-        prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE,
+        // prompt: prompt || context.USER_CONFIG.SYSTEM_INIT_MESSAGE,
     };
     const answer = await llm(llmParams, context, onStream);
     return answer;
@@ -46,7 +47,7 @@ async function requestCompletionsFromLLM(params, context, llm, onStream) {
  * @param {ContextType} context
  * @return {Promise<Response>}
  */
-export async function chatWithLLM(params, context) {
+export async function actWithLLM(params, context) {
     try {
         try {
             const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());

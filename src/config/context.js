@@ -182,7 +182,8 @@ export class Context {
     async initContext(message) {
         // 按顺序初始化上下文
         const chatId = message?.chat?.id;
-        const replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+        const replyId = message.reply_to_message ? message.reply_to_message.message_id : message.message_id; // message.reply_to_message_id ||
+        // console.log(chatId, replyId);
         this._initChatContext(chatId, replyId);
         // console.log(this.CURRENT_CHAT_CONTEXT);
         await this._initShareContext(message);

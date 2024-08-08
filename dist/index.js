@@ -89,9 +89,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722481015;
+  BUILD_TIMESTAMP = 1723110691;
   // 当前版本 commit id
-  BUILD_VERSION = "d28beba";
+  BUILD_VERSION = "5d46d9d";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -170,7 +170,6 @@ var Environment = class {
 };
 var ENV = new Environment();
 var DATABASE = null;
-var API_GUARD = null;
 var CUSTOM_COMMAND = {};
 var CUSTOM_COMMAND_DESCRIPTION = {};
 var CONST = {
@@ -247,7 +246,6 @@ function mergeEnvironment(target, source) {
 }
 function initEnv(env, i18n2) {
   DATABASE = env.DATABASE;
-  API_GUARD = env.API_GUARD;
   const customCommandPrefix = "CUSTOM_COMMAND_";
   const customCommandDescriptionPrefix = "COMMAND_DESCRIPTION_";
   for (const key of Object.keys(env)) {
@@ -307,8 +305,6 @@ var ShareContext = class {
   currentBotId = null;
   currentBotToken = null;
   currentBotName = null;
-  chatHistoryKey = null;
-  chatLastMessageIdKey = null;
   configStoreKey = null;
   groupAdminKey = null;
   usageKey = null;
@@ -391,28 +387,22 @@ var Context = class {
       throw new Error("Chat id not found");
     }
     const botId = this.SHARE_CONTEXT.currentBotId;
-    let historyKey = `history:${id}`;
     let configStoreKey = `user_config:${id}`;
     let groupAdminKey = null;
     if (botId) {
-      historyKey += `:${botId}`;
       configStoreKey += `:${botId}`;
     }
     if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
       if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
-        historyKey += `:${message.from.id}`;
         configStoreKey += `:${message.from.id}`;
       }
       groupAdminKey = `group_admin:${id}`;
     }
     if (message?.chat?.is_forum && message?.is_topic_message) {
       if (message?.message_thread_id) {
-        historyKey += `:${message.message_thread_id}`;
         configStoreKey += `:${message.message_thread_id}`;
       }
     }
-    this.SHARE_CONTEXT.chatHistoryKey = historyKey;
-    this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
     this.SHARE_CONTEXT.configStoreKey = configStoreKey;
     this.SHARE_CONTEXT.groupAdminKey = groupAdminKey;
     this.SHARE_CONTEXT.chatType = message.chat?.type;
@@ -425,7 +415,7 @@ var Context = class {
    */
   async initContext(message) {
     const chatId = message?.chat?.id;
-    const replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+    const replyId = message.reply_to_message ? message.reply_to_message.message_id : message.message_id;
     this._initChatContext(chatId, replyId);
     await this._initShareContext(message);
     await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
@@ -1509,80 +1499,15 @@ function imageModelKey(agentName) {
 }
 
 // src/agent/llm.js
-function tokensCounter() {
-  return (text) => {
-    return text.length;
-  };
-}
-async function loadHistory(key) {
-  let history = [];
-  try {
-    history = JSON.parse(await DATABASE.get(key));
-    history = history.map((item) => {
-      return {
-        role: item.role,
-        content: item.content
-      };
-    });
-  } catch (e) {
-    console.error(e);
-  }
-  if (!history || !Array.isArray(history)) {
-    history = [];
-  }
-  const counter = tokensCounter();
-  const trimHistory = (list, initLength, maxLength, maxToken) => {
-    if (maxLength >= 0 && list.length > maxLength) {
-      list = list.splice(list.length - maxLength);
-    }
-    if (maxToken >= 0) {
-      let tokenLength = initLength;
-      for (let i = list.length - 1; i >= 0; i--) {
-        const historyItem = list[i];
-        let length = 0;
-        if (historyItem.content) {
-          length = counter(historyItem.content);
-        } else {
-          historyItem.content = "";
-        }
-        tokenLength += length;
-        if (tokenLength > maxToken) {
-          list = list.splice(i + 1);
-          break;
-        }
-      }
-    }
-    return list;
-  };
-  if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
-    history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
-  }
-  return history;
-}
-async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
-  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
-  const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
-  const { message } = params;
-  let history = await loadHistory(historyKey);
-  if (modifier) {
-    const modifierData = modifier(history, message);
-    history = modifierData.history;
-    params.message = modifierData.message;
-  }
+async function requestCompletionsFromLLM(params, context, llm, onStream) {
   const llmParams = {
-    ...params,
-    history,
-    prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE
+    ...params
+    // prompt: prompt || context.USER_CONFIG.SYSTEM_INIT_MESSAGE,
   };
   const answer = await llm(llmParams, context, onStream);
-  if (!historyDisable) {
-    history.push({ role: "user", content: message || "" });
-    history.push({ role: "assistant", content: answer });
-    await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
-  }
   return answer;
 }
-async function chatWithLLM(params, context, modifier) {
+async function actWithLLM(params, context) {
   try {
     try {
       const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
@@ -1623,7 +1548,7 @@ async function chatWithLLM(params, context, modifier) {
     if (llm === null) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
-    const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
+    const answer = await requestCompletionsFromLLM(params, context, llm, onStream);
     context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
@@ -1672,8 +1597,7 @@ var commandAuthCheck = {
   }
 };
 var commandSortList = [
-  "/new",
-  "/redo",
+  "/act",
   "/img",
   "/setenv",
   "/delenv",
@@ -1686,15 +1610,26 @@ var commandHandlers = {
     scopes: ["all_private_chats", "all_chat_administrators"],
     fn: commandGetHelp
   },
-  "/new": {
-    scopes: ["all_private_chats", "all_group_chats", "all_chat_administrators"],
-    fn: commandCreateNewChatContext,
-    needAuth: commandAuthCheck.shareModeGroup
-  },
   "/start": {
     scopes: [],
-    fn: commandCreateNewChatContext,
-    needAuth: commandAuthCheck.default
+    fn: commandGetHelp
+  },
+  "/act": {
+    scopes: [],
+    fn: commandActUndefined,
+    needAuth: commandAuthCheck.shareModeGroup
+  },
+  "/act_flatter": {
+    scopes: [],
+    fn: commandActWithLLM,
+    needAuth: commandAuthCheck.shareModeGroup,
+    act: "flatter"
+  },
+  "/act_criticize": {
+    scopes: [],
+    fn: commandActWithLLM,
+    needAuth: commandAuthCheck.shareModeGroup,
+    act: "criticize"
   },
   "/img": {
     scopes: ["all_private_chats", "all_chat_administrators"],
@@ -1730,11 +1665,6 @@ var commandHandlers = {
     scopes: ["all_private_chats", "all_chat_administrators"],
     fn: commandSystem,
     needAuth: commandAuthCheck.default
-  },
-  "/redo": {
-    scopes: ["all_private_chats", "all_group_chats", "all_chat_administrators"],
-    fn: commandRegenerate,
-    needAuth: commandAuthCheck.shareModeGroup
   }
 };
 async function commandGenerateImg(message, command, subcommand, context) {
@@ -1759,21 +1689,36 @@ async function commandGetHelp(message, command, subcommand, context) {
   helpMsg += Object.keys(CUSTOM_COMMAND).filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key]).map((key) => `${key}\uFF1A${CUSTOM_COMMAND_DESCRIPTION[key]}`).join("\n");
   return sendMessageToTelegramWithContext(context)(helpMsg);
 }
-async function commandCreateNewChatContext(message, command, subcommand, context) {
+async function commandActUndefined(message, command, subcommand, context) {
   try {
-    await DATABASE.delete(context.SHARE_CONTEXT.chatHistoryKey);
     context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
       remove_keyboard: true,
       selective: true
     });
-    if (command === "/new") {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.new_chat_start);
+    if (command === "/act") {
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.act);
     } else {
-      return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
+      return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.act}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
     }
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
+}
+async function commandActWithLLM(message, command, subcommand, context) {
+  const _act = commandHandlers[command]?.act;
+  const act = typeof _act === "string" ? ENV.I18N.acts[_act] : _act;
+  if (!act) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
+  }
+  let text = subcommand.trim();
+  if (message.reply_to_message) {
+    text = message.reply_to_message.text;
+  }
+  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
+    text = context.SHARE_CONTEXT.extraMessageContext.text + "\n" + text;
+  }
+  console.log("Act with LLM: ", act, text);
+  return actWithLLM({ message: text, prompt: act.prompt }, context);
 }
 async function commandUpdateUserConfig(message, command, subcommand, context) {
   const kv = subcommand.indexOf("=");
@@ -1924,31 +1869,6 @@ async function commandSystem(message, command, subcommand, context) {
   context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
   return sendMessageToTelegramWithContext(context)(msg);
 }
-async function commandRegenerate(message, command, subcommand, context) {
-  const mf = (history, text) => {
-    let nextText = text;
-    if (!(history && Array.isArray(history) && history.length > 0)) {
-      throw new Error("History not found");
-    }
-    const historyCopy = structuredClone(history);
-    while (true) {
-      const data = historyCopy.pop();
-      if (data === void 0 || data === null) {
-        break;
-      } else if (data.role === "user") {
-        if (text === "" || text === void 0 || text === null) {
-          nextText = data.content;
-        }
-        break;
-      }
-    }
-    if (subcommand) {
-      nextText = subcommand;
-    }
-    return { history: historyCopy, message: nextText };
-  };
-  return chatWithLLM({ message: null }, context, mf);
-}
 async function commandEcho(message, command, subcommand, context) {
   let msg = "<pre>";
   msg += JSON.stringify({ message }, null, 2);
@@ -2039,62 +1959,10 @@ async function bindCommandForTelegram(token) {
   }
   return { ok: true, result };
 }
-function commandsDocument() {
-  return Object.keys(commandHandlers).map((key) => {
-    return {
-      command: key,
-      description: ENV.I18N.command.help[key.substring(1)]
-    };
-  });
-}
 
 // src/utils/utils.js
 function renderHTML(body) {
-  return `
-<html>  
-  <head>
-    <title>ChatGPT-Telegram-Workers</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="ChatGPT-Telegram-Workers">
-    <meta name="author" content="TBXark">
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        font-size: 1rem;
-        font-weight: 400;
-        line-height: 1.5;
-        color: #212529;
-        text-align: left;
-        background-color: #fff;
-      }
-      h1 {
-        margin-top: 0;
-        margin-bottom: 0.5rem;
-      }
-      p {
-        margin-top: 0;
-        margin-bottom: 1rem;
-      }
-      a {
-        color: #007bff;
-        text-decoration: none;
-        background-color: transparent;
-      }
-      a:hover {
-        color: #0056b3;
-        text-decoration: underline;
-      }
-      strong {
-        font-weight: bolder;
-      }
-    </style>
-  </head>
-  <body>
-    ${body}
-  </body>
-</html>
-  `;
+  return `${body}`;
 }
 function errorToString(e) {
   return JSON.stringify({
@@ -2122,33 +1990,6 @@ async function makeResponse200(resp) {
 // src/telegram/message.js
 async function msgInitChatContext(message, context) {
   await context.initContext(message);
-  return null;
-}
-async function msgSaveLastMessage(message, context) {
-  if (ENV.DEBUG_MODE) {
-    const lastMessageKey = `last_message:${context.SHARE_CONTEXT.chatHistoryKey}`;
-    await DATABASE.put(lastMessageKey, JSON.stringify(message), { expirationTtl: 3600 });
-  }
-  return null;
-}
-async function msgIgnoreOldMessage(message, context) {
-  if (ENV.SAFE_MODE) {
-    let idList = [];
-    try {
-      idList = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.chatLastMessageIdKey).catch(() => "[]")) || [];
-    } catch (e) {
-      console.error(e);
-    }
-    if (idList.includes(message.message_id)) {
-      throw new Error("Ignore old message");
-    } else {
-      idList.push(message.message_id);
-      if (idList.length > 100) {
-        idList.shift();
-      }
-      await DATABASE.put(context.SHARE_CONTEXT.chatLastMessageIdKey, JSON.stringify(idList));
-    }
-  }
   return null;
 }
 async function msgCheckEnvIsReady(message, context) {
@@ -2265,13 +2106,6 @@ async function msgHandleCommand(message, context) {
   }
   return await handleCommandMessage(message, context);
 }
-async function msgChatWithLLM(message, context) {
-  let { text } = message;
-  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
-    text = context.SHARE_CONTEXT.extraMessageContext.text + "\n" + text;
-  }
-  return chatWithLLM({ message: text }, context, null);
-}
 async function loadMessage(request, context) {
   const raw = await request.json();
   if (raw.edited_message) {
@@ -2292,20 +2126,16 @@ async function handleMessage(request) {
     msgInitChatContext,
     // 检查环境是否准备好: DATABASE
     msgCheckEnvIsReady,
-    // DEBUG: 保存最后一条消息
-    msgSaveLastMessage,
     // 过滤不支持的消息(抛出异常结束消息处理：当前只支持文本消息)
     msgFilterUnsupportedMessage,
     // 处理群消息，判断是否需要响应此条消息
     msgHandleGroupMessage,
     // 过滤非白名单用户
     msgFilterWhiteList,
-    // 忽略旧消息
-    msgIgnoreOldMessage,
     // 处理命令消息
-    msgHandleCommand,
+    msgHandleCommand
     // 与llm聊天
-    msgChatWithLLM
+    // msgactWithLLM,
   ];
   for (const handler of handlers) {
     try {
@@ -2322,23 +2152,16 @@ async function handleMessage(request) {
 }
 
 // src/router.js
-var helpLink = "https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master/doc/en/DEPLOY.md";
-var issueLink = "https://github.com/TBXark/ChatGPT-Telegram-Workers/issues";
 var initLink = "./init";
-var footer = `
-<br/>
-<p>For more information, please visit <a href="${helpLink}">${helpLink}</a></p>
-<p>If you have any questions, please visit <a href="${issueLink}">${issueLink}</a></p>
-`;
+var footer = ``;
 function buildKeyNotFoundHTML(key) {
-  return `<p style="color: red">Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.</p> `;
+  return `Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.`;
 }
 async function bindWebHookAction(request) {
   const result = [];
   const domain = new URL(request.url).host;
-  const hookMode = API_GUARD ? "safehook" : "webhook";
   for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
-    const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
+    const url = `https://${domain}/telegram/${token.trim()}/webhook`;
     const id = token.split(":")[0];
     result[id] = {
       webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),
@@ -2346,18 +2169,16 @@ async function bindWebHookAction(request) {
     };
   }
   const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <h2>${domain}</h2>
+    ${domain}
     ${ENV.TELEGRAM_AVAILABLE_TOKENS.length === 0 ? buildKeyNotFoundHTML("TELEGRAM_AVAILABLE_TOKENS") : ""}
     ${Object.keys(result).map((id) => `
-        <br/>
-        <h4>Bot ID: ${id}</h4>
-        <p style="color: ${result[id].webhook.ok ? "green" : "red"}">Webhook: ${JSON.stringify(result[id].webhook)}</p>
-        <p style="color: ${result[id].command.ok ? "green" : "red"}">Command: ${JSON.stringify(result[id].command)}</p>
+        Bot ID: ${id}
+        Webhook: ${JSON.stringify(result[id].webhook)}
+        Command: ${JSON.stringify(result[id].command)}
         `).join("")}
       ${footer}
     `);
-  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
+  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/plain" } });
 }
 async function telegramWebhook(request) {
   try {
@@ -2367,38 +2188,13 @@ async function telegramWebhook(request) {
     return new Response(errorToString(e), { status: 200 });
   }
 }
-async function telegramSafeHook(request) {
-  try {
-    if (API_GUARD === void 0 || API_GUARD === null) {
-      return telegramWebhook(request);
-    }
-    console.log("API_GUARD is enabled");
-    const url = new URL(request.url);
-    url.pathname = url.pathname.replace("/safehook", "/webhook");
-    request = new Request(url, request);
-    return await makeResponse200(await API_GUARD.fetch(request));
-  } catch (e) {
-    console.error(e);
-    return new Response(errorToString(e), { status: 200 });
-  }
-}
 async function defaultIndexAction() {
   const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <br/>
-    <p>Deployed Successfully!</p>
-    <p> Version (ts:${ENV.BUILD_TIMESTAMP},sha:${ENV.BUILD_VERSION})</p>
-    <br/>
-    <p>You must <strong><a href="${initLink}"> >>>>> click here <<<<< </a></strong> to bind the webhook.</p>
-    <br/>
-    <p>After binding the webhook, you can use the following commands to control the bot:</p>
-    ${commandsDocument().map((item) => `<p><strong>${item.command}</strong> - ${item.description}</p>`).join("")}
-    <br/>
-    <p>You can get bot information by visiting the following URL:</p>
-    <p><strong>/telegram/:token/bot</strong> - Get bot information</p>
-    ${footer}
+    OK!
+    Version (ts:${ENV.BUILD_TIMESTAMP},sha:${ENV.BUILD_VERSION})
+    Bind webhook ${initLink}
   `);
-  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
+  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/plain" } });
 }
 async function loadBotInfo() {
   const result = [];
@@ -2407,20 +2203,17 @@ async function loadBotInfo() {
     result[id] = await getBot(token);
   }
   const HTML = renderHTML(`
-    <h1>ChatGPT-Telegram-Workers</h1>
-    <br/>
-    <h4>Environment About Bot</h4>
-    <p><strong>GROUP_CHAT_BOT_ENABLE:</strong> ${ENV.GROUP_CHAT_BOT_ENABLE}</p>
-    <p><strong>GROUP_CHAT_BOT_SHARE_MODE:</strong> ${ENV.GROUP_CHAT_BOT_SHARE_MODE}</p>
-    <p><strong>TELEGRAM_BOT_NAME:</strong> ${ENV.TELEGRAM_BOT_NAME.join(",")}</p>
+    Bot Info (Env)
+    GROUP_CHAT_BOT_ENABLE: ${ENV.GROUP_CHAT_BOT_ENABLE}
+    GROUP_CHAT_BOT_SHARE_MODE: ${ENV.GROUP_CHAT_BOT_SHARE_MODE}
+    TELEGRAM_BOT_NAME: ${ENV.TELEGRAM_BOT_NAME.join(",")}
+    
     ${Object.keys(result).map((id) => `
-            <br/>
-            <h4>Bot ID: ${id}</h4>
-            <p style="color: ${result[id].ok ? "green" : "red"}">${JSON.stringify(result[id])}</p>
-            `).join("")}
-    ${footer}
+    Bot ID: ${id}
+    ${JSON.stringify(result[id])}
+    `).join("")}
   `);
-  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
+  return new Response(HTML, { status: 200, headers: { "Content-Type": "text/plain" } });
 }
 async function handleRequest(request) {
   const { pathname } = new URL(request.url);
@@ -2433,9 +2226,6 @@ async function handleRequest(request) {
   if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/webhook`)) {
     return telegramWebhook(request);
   }
-  if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/safehook`)) {
-    return telegramSafeHook(request);
-  }
   if (ENV.DEV_MODE || ENV.DEBUG_MODE) {
     if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/bot`)) {
       return loadBotInfo();
@@ -2445,16 +2235,87 @@ async function handleRequest(request) {
 }
 
 // src/i18n/zh-hans.js
-var zh_hans_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u4E2A\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u5F53\u524D\u652F\u6301\u4EE5\u4E0B\u547D\u4EE4:\n", "help": "\u83B7\u53D6\u547D\u4EE4\u5E2E\u52A9", "new": "\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "start": "\u83B7\u53D6\u4F60\u7684ID, \u5E76\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "img": "\u751F\u6210\u4E00\u5F20\u56FE\u7247, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A `/img \u56FE\u7247\u63CF\u8FF0`, \u4F8B\u5982`/img \u6708\u5149\u4E0B\u7684\u6C99\u6EE9`", "version": "\u83B7\u53D6\u5F53\u524D\u7248\u672C\u53F7, \u5224\u65AD\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "\u5220\u9664\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6237\u914D\u7F6E", "system": "\u67E5\u770B\u5F53\u524D\u4E00\u4E9B\u7CFB\u7EDF\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5BF9\u8BDD, /redo \u52A0\u4FEE\u6539\u8FC7\u7684\u5185\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F" }, "new": { "new_chat_start": "\u65B0\u7684\u5BF9\u8BDD\u5DF2\u7ECF\u5F00\u59CB" } } };
+var zh_hans_default = {
+  "env": {
+    "system_init_message": "\u4F60\u662F\u4E00\u4E2A\u5F97\u529B\u7684\u52A9\u624B"
+  },
+  "command": {
+    "help": {
+      "summary": "\u5F53\u524D\u652F\u6301\u4EE5\u4E0B\u547D\u4EE4:\n",
+      "help": "\u83B7\u53D6\u547D\u4EE4\u5E2E\u52A9",
+      "start": "\u83B7\u53D6\u4F60\u7684ID, \u5E76\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD",
+      "img": "\u751F\u6210\u4E00\u5F20\u56FE\u7247, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A `/img \u56FE\u7247\u63CF\u8FF0`, \u4F8B\u5982`/img \u6708\u5149\u4E0B\u7684\u6C99\u6EE9`",
+      "version": "\u83B7\u53D6\u5F53\u524D\u7248\u672C\u53F7, \u5224\u65AD\u662F\u5426\u9700\u8981\u66F4\u65B0",
+      "setenv": "\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenv KEY=VALUE",
+      "setenvs": '\u6279\u91CF\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}',
+      "delenv": "\u5220\u9664\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /delenv KEY",
+      "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6237\u914D\u7F6E",
+      "system": "\u67E5\u770B\u5F53\u524D\u4E00\u4E9B\u7CFB\u7EDF\u4FE1\u606F",
+      "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5BF9\u8BDD, /redo \u52A0\u4FEE\u6539\u8FC7\u7684\u5185\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo",
+      "echo": "\u56DE\u663E\u6D88\u606F"
+    },
+    "new": {
+      "act": "\u9009\u62E9\u4F60\u8981\u7528\u7684\u529F\u80FD"
+    }
+  },
+  "acts": {
+    "flatter": {
+      "name": "\u5938\u5938",
+      "prompt": "\u5F53\u7528\u6237\u8BF4\u4EFB\u4F55\u8BDD\u7684\u65F6\u5019\uFF0C\u7528\u8BD9\u8C10\u98CE\u8DA3\u7684\u8BED\u8A00\u8FDB\u884C\u5938\u5956\u548C\u8D5E\u7F8E\u3002\u7EDD\u5BF9\u907F\u514D\u4F7F\u7528\u8D1F\u9762\u8BCD\u6C47\u6216\u7ED9\u51FA\u8D1F\u9762\u8BC4\u4EF7\u3002"
+    },
+    "criticize": {
+      "name": "\u6279\u5224",
+      "prompt": "\u5F53\u7528\u6237\u8BF4\u4EFB\u4F55\u8BDD\u7684\u65F6\u5019\uFF0C\u7528\u4E25\u5389\u548C\u6279\u5224\u7684\u8BED\u8A00\u6307\u51FA\u95EE\u9898\u548C\u7F3A\u9677\u3002\u907F\u514D\u7ED9\u4E88\u4EFB\u4F55\u5938\u5956\u6216\u6B63\u9762\u8BC4\u4EF7\u3002"
+    },
+    "ask": {
+      "name": "\u63D0\u95EE",
+      "prompt": "\u4F60\u662F\u5F97\u529B\u52A9\u624B\uFF61 "
+    }
+  }
+};
 
 // src/i18n/zh-hant.js
 var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500B\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u7576\u524D\u652F\u6301\u7684\u547D\u4EE4\u5982\u4E0B\uFF1A\n", "help": "\u7372\u53D6\u547D\u4EE4\u5E6B\u52A9", "new": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "start": "\u7372\u53D6\u60A8\u7684ID\u4E26\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "img": "\u751F\u6210\u5716\u7247\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA`/img \u5716\u7247\u63CF\u8FF0`\uFF0C\u4F8B\u5982`/img \u6D77\u7058\u6708\u5149`", "version": "\u7372\u53D6\u7576\u524D\u7248\u672C\u865F\u78BA\u8A8D\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8A2D\u7F6E\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8A2D\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "\u522A\u9664\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6236\u914D\u7F6E", "system": "\u67E5\u770B\u4E00\u4E9B\u7CFB\u7D71\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5C0D\u8A71 /redo \u52A0\u4FEE\u6539\u904E\u7684\u5167\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F" }, "new": { "new_chat_start": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71" } } };
 
-// src/i18n/pt.js
-var pt_default = { "env": { "system_init_message": "Voc\xEA \xE9 um assistente \xFAtil" }, "command": { "help": { "summary": "Os seguintes comandos s\xE3o suportados atualmente:\n", "help": "Obter ajuda sobre comandos", "new": "Iniciar uma nova conversa", "start": "Obter seu ID e iniciar uma nova conversa", "img": "Gerar uma imagem, o formato completo do comando \xE9 `/img descri\xE7\xE3o da imagem`, por exemplo `/img praia ao luar`", "version": "Obter o n\xFAmero da vers\xE3o atual para determinar se \xE9 necess\xE1rio atualizar", "setenv": "Definir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /setenv CHAVE=VALOR", "setenvs": 'Definir configura\xE7\xF5es do usu\xE1rio em lote, o formato completo do comando \xE9 /setenvs {"CHAVE1": "VALOR1", "CHAVE2": "VALOR2"}', "delenv": "Excluir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /delenv CHAVE", "clearenv": "Limpar todas as configura\xE7\xF5es do usu\xE1rio", "system": "Ver algumas informa\xE7\xF5es do sistema", "redo": "Refazer a \xFAltima conversa, /redo com conte\xFAdo modificado ou diretamente /redo", "echo": "Repetir a mensagem" }, "new": { "new_chat_start": "Uma nova conversa foi iniciada" } } };
-
 // src/i18n/en.js
-var en_default = { "env": { "system_init_message": "You are a helpful assistant" }, "command": { "help": { "summary": "The following commands are currently supported:\n", "help": "Get command help", "new": "Start a new conversation", "start": "Get your ID and start a new conversation", "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`", "version": "Get the current version number to determine whether to update", "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE", "setenvs": 'Batch set user configurations, the full format of the command is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "Delete user configuration, the complete command format is /delenv KEY", "clearenv": "Clear all user configuration", "system": "View some system information", "redo": "Redo the last conversation, /redo with modified content or directly /redo", "echo": "Echo the message" }, "new": { "new_chat_start": "A new conversation has started" } } };
+var en_default = {
+  "env": {
+    "system_init_message": "You are a helpful assistant"
+  },
+  "command": {
+    "help": {
+      "summary": "The following commands are currently supported:\n",
+      "help": "Get command help",
+      "start": "Get your ID and start a new conversation",
+      "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`",
+      "version": "Get the current version number to determine whether to update",
+      "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE",
+      "setenvs": 'Batch set user configurations, the complete command format is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}',
+      "delenv": "Delete user configuration, the complete command format is /delenv KEY",
+      "clearenv": "Clear all user configuration",
+      "system": "View some system information",
+      "redo": "Redo the last conversation, /redo with modified content or directly /redo",
+      "echo": "Echo the message"
+    },
+    "new": {
+      "new_chat_start": "A new conversation has started"
+    }
+  },
+  "acts": {
+    "flatter": {
+      "name": "Praise",
+      "prompt": "Whenever the user says anything, use humorous and witty language to praise and compliment. Absolutely avoid using negative words or giving negative evaluations."
+    },
+    "criticize": {
+      "name": "Criticize",
+      "prompt": "Whenever the user says anything, use stern and critical language to point out issues and flaws. Avoid giving any praise or positive evaluations."
+    },
+    "ask": {
+      "name": "Ask",
+      "prompt": "You are a helpful assistant."
+    }
+  }
+};
 
 // src/i18n/index.js
 function i18n(lang) {
@@ -2468,12 +2329,6 @@ function i18n(lang) {
     case "zh-mo":
     case "zh-hant":
       return zh_hant_default;
-    case "pt":
-    case "pt-br":
-      return pt_default;
-    case "en":
-    case "en-us":
-      return en_default;
     default:
       return en_default;
   }

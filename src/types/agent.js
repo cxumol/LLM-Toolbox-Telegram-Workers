@@ -3,11 +3,11 @@
  * @property {string | null | undefined} message - 输入文本
  * @property {string | null | undefined} image - 图片
  * @property {string | null | undefined} audio - 音频
+ * @property {string | null | undefined} prompt - system prompt
  */
 
 /**
  * @typedef {LlmRequestParams} LlmParams
- * @property {string | null | undefined} prompt - 提示
  * @property {HistoryItem[] | null | undefined} history - 历史记录
  */
 

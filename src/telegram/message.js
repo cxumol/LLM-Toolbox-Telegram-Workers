@@ -3,7 +3,7 @@ import {Context} from '../config/context.js';
 import {getBot, sendMessageToTelegramWithContext} from './telegram.js';
 import {handleCommandMessage} from './command.js';
 import {errorToString} from '../utils/utils.js';
-import {chatWithLLM} from '../agent/llm.js';
+import {actWithLLM} from '../agent/llm.js';
 
 import '../types/telegram.js';
 
@@ -203,12 +203,12 @@ async function msgHandleCommand(message, context) {
  * @param {ContextType} context
  * @return {Promise<Response>}
  */
-async function msgChatWithLLM(message, context) {
+async function msgactWithLLM(message, context) {
     let { text } = message;
     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
         text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
     }
-    return chatWithLLM({message: text}, context, null);
+    return actWithLLM({message: text}, context, null);
 }
 
 
@@ -266,7 +266,7 @@ export async function handleMessage(request) {
         // 处理命令消息
         msgHandleCommand,
         // 与llm聊天
-        msgChatWithLLM,
+        // msgactWithLLM,
     ];
 
     for (const handler of handlers) {
