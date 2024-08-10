@@ -89,6 +89,12 @@ const commandHandlers = {
         needAuth: commandAuthCheck.shareModeGroup,
         act: 'criticize',
     },
+    '/act_flirt': {
+        scopes: [],
+        fn: commandActWithLLM,
+        needAuth: commandAuthCheck.shareModeGroup,
+        act: 'flirt',
+    },
     '/img': {
         scopes: ['all_private_chats', 'all_chat_administrators'],
         fn: commandGenerateImg,
