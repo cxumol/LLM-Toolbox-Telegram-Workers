@@ -121,6 +121,7 @@ Object.keys(ENV.I18N.acts).forEach((act) => {
         fn: commandActWithLLM,
         needAuth: commandAuthCheck.shareModeGroup,
     };
+    commandSortList.splice(1,0,`/act_${act}`);
 });
 
 /**
