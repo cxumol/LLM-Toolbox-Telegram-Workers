@@ -77,24 +77,6 @@ const commandHandlers = {
         fn: commandActUndefined,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/act_flatter': {
-        scopes: [],
-        fn: commandActWithLLM,
-        needAuth: commandAuthCheck.shareModeGroup,
-        act: 'flatter',
-    },
-    '/act_criticize': {
-        scopes: [],
-        fn: commandActWithLLM,
-        needAuth: commandAuthCheck.shareModeGroup,
-        act: 'criticize',
-    },
-    '/act_flirt': {
-        scopes: [],
-        fn: commandActWithLLM,
-        needAuth: commandAuthCheck.shareModeGroup,
-        act: 'flirt',
-    },
     '/img': {
         scopes: ['all_private_chats', 'all_chat_administrators'],
         fn: commandGenerateImg,
@@ -131,6 +113,15 @@ const commandHandlers = {
         needAuth: commandAuthCheck.default,
     },
 };
+
+/* register /act_* commands */
+Object.keys(ENV.I18N.acts).forEach((act) => {
+    commandHandlers[`/act_${act}`] = {
+        scopes: [],
+        fn: commandActWithLLM,
+        needAuth: commandAuthCheck.shareModeGroup,
+    };
+});
 
 /**
  * /img 命令
@@ -214,8 +205,8 @@ async function commandActUndefined(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandActWithLLM(message, command, subcommand, context) {
-    const _act = commandHandlers[command]?.act;
-    const act = typeof _act === "string" ? ENV.I18N.acts[_act] : _act;
+    const _act = command.split('_').slice(1).join('_'); 
+    const act = ENV.I18N.acts[_act];
     if (!act) {
         return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
     }
