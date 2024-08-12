@@ -108,7 +108,7 @@ export function deleteMessageFromTelegramWithContext(context) {
 export async function sendPhotoToTelegram(photo, token, context) {
     const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
     const isPhotoString = typeof photo === 'string';
-    const filteredContext = Object.fromEntries(Object.entries(context).filter(([k, v]) => v !== undefined && v !== null)); // Filter context
+    const filteredContext = Object.fromEntries(Object.entries(context).filter(([, v]) => v !== undefined && v !== null)); // Filter context
     
     const body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(); // Use filteredContext
     const headers = isPhotoString ? { 'Content-Type': 'application/json' } : {};

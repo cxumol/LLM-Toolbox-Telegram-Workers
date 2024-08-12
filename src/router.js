@@ -1,12 +1,10 @@
 import {handleMessage} from './telegram/message.js';
 import {ENV} from './config/env.js';
-import {bindCommandForTelegram, commandsDocument} from './telegram/command.js';
+import {bindCommandForTelegram} from './telegram/command.js';
 import {bindTelegramWebHook, getBot} from './telegram/telegram.js';
 import {errorToString, makeResponse200, renderHTML} from './utils/utils.js';
 
 
-const helpLink = 'https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master/doc/en/DEPLOY.md';
-const issueLink = 'https://github.com/TBXark/ChatGPT-Telegram-Workers/issues';
 const initLink = './init';
 
 const footer = ``;
