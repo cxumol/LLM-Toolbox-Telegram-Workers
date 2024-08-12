@@ -275,7 +275,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context) {
 }
 
 /**
- * /mod_env_del 用户配置修改
+ * /mod_env_del 用户配置单项删除
  *
  * @param {TelegramMessage} message
  * @param {string} command
