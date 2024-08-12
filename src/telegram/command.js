@@ -46,25 +46,19 @@ const commandAuthCheck = {
 };
 
 
-const commandSortList = [
-    '/act',
-    '/img',
-    '/setenv',
-    '/delenv',
-    '/system',
-    '/help',
-];
-
 /*
 scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
 fn: commandCreateNewChatContext,
 needAuth: commandAuthCheck.default 需要群管权限, commandAuthCheck.shareModeGroup, 每个人在群里有上下文的时候，不限制; 但是在群里没有shared上下文的时候，需要管理员权限
 */ 
 
+const scopeMod = ['all_private_chats', 'all_chat_administrators'];
+const scopeFull = scopeMod.concat(['all_group_chats']);
+
 // 命令绑定
 const commandHandlers = {
     '/help': {
-        scopes: ['all_private_chats', 'all_chat_administrators'],
+        scopes: scopeMod,
         fn: commandGetHelp,
     },
     '/start': {
@@ -72,41 +66,43 @@ const commandHandlers = {
         fn: commandGetHelp,
     },
     '/act': {
-        scopes: ['all_private_chats', 'all_group_chats'],
+        scopes: scopeFull,
         fn: commandActUndefined,
         needAuth: commandAuthCheck.shareModeGroup,
     },
     '/img': {
-        scopes: ['all_private_chats', 'all_chat_administrators'],
+        scopes: scopeMod,
         fn: commandGenerateImg,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/setenv': {
-        scopes: [],
+    '/mod_env_set': {
+        scopes: scopeMod,
         fn: commandUpdateUserConfig,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/setenvs': {
-        scopes: [],
+    '/mod_env_set_batch': {
+        scopes: scopeMod,
         fn: commandUpdateUserConfigs,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/delenv': {
-        scopes: [],
+    '/mod_env_del': {
+        scopes: scopeMod,
         fn: commandDeleteUserConfig,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/clearenv': {
-        scopes: [],
+    '/mod_env_del_all': {
+        scopes: scopeMod,
         fn: commandClearUserConfig,
         needAuth: commandAuthCheck.shareModeGroup,
     },
-    '/system': {
-        scopes: ['all_private_chats', 'all_chat_administrators'],
+    '/mod_system': {
+        scopes: scopeMod,
         fn: commandSystem,
         needAuth: commandAuthCheck.default,
     },
 };
+
+const commandSortList = Object.keys(commandHandlers).filter((key)=>!['/start','/img'].includes(key)); //.sort((a, b) => a.length - b.length);
 
 /* init dynamic commands */
 function initDynamicCommands() {
@@ -117,7 +113,7 @@ function initDynamicCommands() {
 function registerActCommands() {
     Object.keys(ENV.I18N.acts).forEach((act) => {
         commandHandlers[`/act_${act}`] = {
-            scopes: ['all_private_chats', 'all_group_chats'],
+            scopes: scopeFull,
             fn: commandActWithLLM,
             needAuth: commandAuthCheck.shareModeGroup,
         };
@@ -138,17 +134,15 @@ async function commandGenerateImg(message, command, subcommand, context) {
     if (subcommand === '') {
         return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
     }
-    try {
-        const gen = loadImageGen(context)?.request;
-        if (!gen) {
-            return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
-        }
-        setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
-        const img = await gen(subcommand, context);
-        return sendPhotoToTelegramWithContext(context)(img);
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+
+    const gen = loadImageGen(context)?.request;
+    if (!gen) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
     }
+    setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+    const img = await gen(subcommand, context);
+    return sendPhotoToTelegramWithContext(context)(img);
+
 }
 
 /**
@@ -182,7 +176,6 @@ async function commandGetHelp(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandActUndefined(message, command, subcommand, context) {
-    try {
         context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
             remove_keyboard: true,
             selective: true,
@@ -190,9 +183,6 @@ async function commandActUndefined(message, command, subcommand, context) {
         const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
         
         return sendMessageToTelegramWithContext(context)(msgText);
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-    }
 }
 
 /**
@@ -222,7 +212,7 @@ async function commandActWithLLM(message, command, subcommand, context) {
 
 
 /**
- * /setenv 用户配置修改
+ * /mod_env_set 用户配置修改
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -240,22 +230,19 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
     if (!Object.keys(context.USER_CONFIG).includes(key)) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
     }
-    try {
-        context.USER_CONFIG.DEFINE_KEYS = [...new Set([...context.USER_CONFIG.DEFINE_KEYS, key])];
-        mergeEnvironment(context.USER_CONFIG, {[key]: value});
-        console.log("Update user config: ", key, context.USER_CONFIG[key]);
-        await DATABASE.put(
-            context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify(trimUserConfig(context.USER_CONFIG)),
-        );
-        return sendMessageToTelegramWithContext(context)('Update user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-    }
+
+    context.USER_CONFIG.DEFINE_KEYS = [...new Set([...context.USER_CONFIG.DEFINE_KEYS, key])];
+    mergeEnvironment(context.USER_CONFIG, {[key]: value});
+    console.log("Update user config: ", key, context.USER_CONFIG[key]);
+    await DATABASE.put(
+        context.SHARE_CONTEXT.configStoreKey,
+        JSON.stringify(trimUserConfig(context.USER_CONFIG)),
+    );
+    return sendMessageToTelegramWithContext(context)('Update user config success');
 }
 
 /**
- * /setenvs 批量用户配置修改
+ * /mod_env_set_batch 批量用户配置修改
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -264,35 +251,31 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfigs(message, command, subcommand, context) {
-    try {
-        const values = JSON.parse(subcommand);
-        const configKeys = new Set(Object.keys(context.USER_CONFIG));
-        for (const ent of Object.entries(values)) {
-            let [key, value] = ent;
-            key = ENV_KEY_MAPPER[key] || key;
-            if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
-                return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-            }
-            if (!configKeys.has(key)) {
-                return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-            }
-            context.USER_CONFIG.DEFINE_KEYS.push(key);
-            mergeEnvironment(context.USER_CONFIG, {[key]: value});
-            console.log("Update user config: ", key, context.USER_CONFIG[key]);
+    const values = JSON.parse(subcommand);
+    const configKeys = new Set(Object.keys(context.USER_CONFIG));
+    for (const ent of Object.entries(values)) {
+        let [key, value] = ent;
+        key = ENV_KEY_MAPPER[key] || key;
+        if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
+            return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
         }
-        context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
-        await DATABASE.put(
-            context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify(trimUserConfig(context.USER_CONFIG)),
-        );
-        return sendMessageToTelegramWithContext(context)('Update user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+        if (!configKeys.has(key)) {
+            return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
+        }
+        context.USER_CONFIG.DEFINE_KEYS.push(key);
+        mergeEnvironment(context.USER_CONFIG, {[key]: value});
+        console.log("Update user config: ", key, context.USER_CONFIG[key]);
     }
+    context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
+    await DATABASE.put(
+        context.SHARE_CONTEXT.configStoreKey,
+        JSON.stringify(trimUserConfig(context.USER_CONFIG)),
+    );
+    return sendMessageToTelegramWithContext(context)('Update user config success');
 }
 
 /**
- * /delenv 用户配置修改
+ * /mod_env_del 用户配置修改
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -305,22 +288,19 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
         const msg = `Key ${subcommand} is locked`;
         return sendMessageToTelegramWithContext(context)(msg);
     }
-    try {
-        context.USER_CONFIG[subcommand] = null;
-        context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand);
-        await DATABASE.put(
-            context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify(trimUserConfig(context.USER_CONFIG)),
-        );
-        return sendMessageToTelegramWithContext(context)('Delete user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-    }
+
+    context.USER_CONFIG[subcommand] = null;
+    context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand);
+    await DATABASE.put(
+        context.SHARE_CONTEXT.configStoreKey,
+        JSON.stringify(trimUserConfig(context.USER_CONFIG)),
+    );
+    return sendMessageToTelegramWithContext(context)('Delete user config success');
 }
 
 
 /**
- * /clearenv 清空用户配置
+ * /mod_env_del_all 清空用户配置
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -329,20 +309,16 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandClearUserConfig(message, command, subcommand, context) {
-    try {
-        await DATABASE.put(
-            context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify({}),
-        );
-        return sendMessageToTelegramWithContext(context)('Clear user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-    }
+    await DATABASE.put(
+        context.SHARE_CONTEXT.configStoreKey,
+        JSON.stringify({}),
+    );
+    return sendMessageToTelegramWithContext(context)('Clear user config success');
 }
 
 
 /**
- * /system 获得系统信息
+ * /mod_system 获得系统信息
  *
  * @param {TelegramMessage} message
  * @param {string} command
@@ -423,7 +399,7 @@ export async function handleCommandMessage(message, context) {
         };
     }
 
-    // 检查是否有自定义命令
+    // 检查是否有自定义命令 其实是 alias
     if (CUSTOM_COMMAND[message.text]) {
         message.text = CUSTOM_COMMAND[message.text];
     }
@@ -503,11 +479,11 @@ export async function bindCommandForTelegram(token) {
             },
         ).then(res => res.json());
     }
-    return {ok: true, result, scopeCommandMap: JSON.stringify(scopeCommandMap)};
+    return {ok: true, result, scopeCommandMap: scopeCommandMap};
 }
 
 /**
- * 获取所有命令的描述
+ * 获取所有命令的描述 (Not Used)
  * @return {{description: *, command: *}[]}
  */
 export function commandsDocument() {
