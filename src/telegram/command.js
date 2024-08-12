@@ -517,7 +517,7 @@ export function commandsDocument() {
     return Object.keys(commandHandlers).map((key) => {
         return {
             command: key,
-            description: ENV.I18N.command.help[key.substring(1)],
+            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)].name,
         };
     });
 }
