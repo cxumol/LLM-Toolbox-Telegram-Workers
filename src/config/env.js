@@ -179,7 +179,6 @@ export const CUSTOM_COMMAND = {};
 export const CUSTOM_COMMAND_DESCRIPTION = {};
 
 export const CONST = {
-    PASSWORD_KEY: 'chat_history_password',
     GROUP_TYPES: ['group', 'supergroup'],
 };
 
