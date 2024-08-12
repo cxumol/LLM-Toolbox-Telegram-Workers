@@ -389,7 +389,6 @@ async function commandSystem(message, command, subcommand, context) {
         context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID = '******';
         context.USER_CONFIG.CLOUDFLARE_TOKEN = '******';
         context.USER_CONFIG.GOOGLE_API_KEY = '******';
-        context.USER_CONFIG.COHERE_API_KEY = '******';
         const config = trimUserConfig(context.USER_CONFIG);
         msg = '<pre>\n' + msg;
         msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;

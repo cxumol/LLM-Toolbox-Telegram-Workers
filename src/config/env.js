@@ -73,15 +73,6 @@ export class UserConfig {
     // Google Gemini Model
     GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
 
-    // -- Cohere 配置 --
-    //
-    // cohere api key
-    COHERE_API_KEY = null;
-    // cohere api base
-    COHERE_API_BASE = "https://api.cohere.com/v1";
-    // cohere api model
-    COHERE_CHAT_MODEL = "command-r-plus";
-
 }
 
 
@@ -129,7 +120,6 @@ class Environment {
         // 默认为API BASE 防止被替换导致token 泄露
         'OPENAI_API_BASE',
         'GOOGLE_COMPLETIONS_API',
-        'COHERE_API_BASE',
         'AZURE_COMPLETIONS_API',
         'AZURE_DALLE_API',
     ];
@@ -201,7 +191,6 @@ const ENV_TYPES = {
     CLOUDFLARE_ACCOUNT_ID: 'string',
     CLOUDFLARE_TOKEN: 'string',
     GOOGLE_API_KEY: 'string',
-    COHERE_API_KEY: 'string',
 };
 
 export const ENV_KEY_MAPPER = {

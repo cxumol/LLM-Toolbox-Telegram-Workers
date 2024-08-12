@@ -153,16 +153,6 @@ OPENAI_API_KEY = 'SK-1,SK-2'
 #GOOGLE_COMPLETIONS_MODEL = 'gemini-pro'
 
 
-## -- Cohere 配置 --
-##
-## cohere api key
-#COHERE_API_KEY = ''
-## cohere api base
-#COHERE_API_BASE = 'https://api.cohere.com/v1'
-## cohere api model
-#COHERE_CHAT_MODEL = 'command-r-plus'
-
-
 CUSTOM_COMMAND_azure= '/setenvs {"AI_PROVIDER": "azure"}'
 COMMAND_DESCRIPTION_azure = 'Switch to Azure AI provider'
 

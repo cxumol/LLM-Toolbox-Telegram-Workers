@@ -33,18 +33,6 @@
  * @property {string} GOOGLE_COMPLETIONS_API
  * @property {string} GOOGLE_COMPLETIONS_MODEL
  *
- * @property {string | null} MISTRAL_API_KEY
- * @property {string} MISTRAL_API_BASE
- * @property {string} MISTRAL_CHAT_MODEL
- *
- * @property {string | null} COHERE_API_KEY
- * @property {string} COHERE_API_BASE
- * @property {string} COHERE_CHAT_MODEL
- *
- * @property {string | null} ANTHROPIC_API_KEY
- * @property {string} ANTHROPIC_API_BASE
- * @property {string} ANTHROPIC_CHAT_MODEL
- *
  */
 
 /**
