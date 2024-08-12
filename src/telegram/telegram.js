@@ -9,28 +9,20 @@ import "../types/context.js";
  * @return {Promise<Response>}
  */
 async function sendMessage(message, token, context) {
-    const body = {
-        text: message,
-    };
-    for (const key of Object.keys(context)) {
-        if (context[key] !== undefined && context[key] !== null) {
-            body[key] = context[key];
-        }
-    }
-    let method = 'sendMessage';
-    if (context?.message_id) {
-        method = 'editMessageText';
-    }
-    return await fetch(
-        `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        },
+    const validContext = Object.fromEntries(
+        Object.entries(context).filter(([, value]) => value !== null && value !== undefined)
     );
+    
+    const body = { text: message, ...validContext };
+    
+    const botMethod = context?.message_id ? 'editMessageText' : 'sendMessage';
+    
+    // 使用 fetch 发送请求
+    return fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${botMethod}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
 }
 
 
@@ -94,9 +86,7 @@ export function deleteMessageFromTelegramWithContext(context) {
             `${ENV.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify({
                     chat_id: context.CURRENT_CHAT_CONTEXT.chat_id,
                     message_id: messageId,
@@ -117,34 +107,22 @@ export function deleteMessageFromTelegramWithContext(context) {
  */
 export async function sendPhotoToTelegram(photo, token, context) {
     const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
-    let body;
-    const headers = {};
-    if (typeof photo === 'string') {
-        body = {
-            photo: photo,
-        };
-        for (const key of Object.keys(context)) {
-            if (context[key] !== undefined && context[key] !== null) {
-                body[key] = context[key];
-            }
-        }
-        body = JSON.stringify(body);
-        headers['Content-Type'] = 'application/json';
-    } else {
-        body = new FormData();
+    const isPhotoString = typeof photo === 'string';
+    const filteredContext = Object.fromEntries(Object.entries(context).filter(([k, v]) => v !== undefined && v !== null)); // Filter context
+    
+    const body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(); // Use filteredContext
+    const headers = isPhotoString ? { 'Content-Type': 'application/json' } : {};
+    
+    if (!isPhotoString) {
         body.append('photo', photo, 'photo.png');
-        for (const key of Object.keys(context)) {
-            if (context[key] !== undefined && context[key] !== null) {
-                body.append(key, `${context[key]}`);
-            }
-        }
+        Object.entries(filteredContext).forEach(([key, value]) => body.append(key, `${value}`));
     }
+    
     return await fetch(url, {
-            method: 'POST',
-            headers,
-            body,
-        },
-    );
+        method: 'POST',
+        headers: headers,
+        body,
+    });
 }
 
 
@@ -173,9 +151,7 @@ export async function sendChatActionToTelegram(action, token, chatId) {
         `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendChatAction`,
         {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 chat_id: chatId,
                 action: action,
@@ -204,12 +180,8 @@ export async function bindTelegramWebHook(token, url) {
         `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/setWebhook`,
         {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                url: url,
-            }),
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url})
         },
     ).then((res) => res.json());
 }
@@ -244,13 +216,7 @@ export async function getChatRole(id, groupAdminKey, chatId, token) {
             {expiration: (Date.now() / 1000) + 120},
         );
     }
-    for (let i = 0; i < groupAdmin.length; i++) {
-        const user = groupAdmin[i];
-        if (user.user.id === id) {
-            return user.status;
-        }
-    }
-    return 'member';
+    return groupAdmin.find(u => u.user.id === id)?.status || 'member';
 }
 
 /**
@@ -275,20 +241,13 @@ export function getChatRoleWithContext(context) {
 export async function getChatAdminister(chatId, token) {
     try {
         const resp = await fetch(
-            `${ENV.TELEGRAM_API_DOMAIN}/bot${
-                token
-            }/getChatAdministrators`,
+            `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getChatAdministrators`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({chat_id: chatId}),
-            },
-        ).then((res) => res.json());
-        if (resp.ok) {
-            return resp.result;
-        }
+            }).then((res) => res.json());
+        return resp.ok ? resp.result : null;
     } catch (e) {
         console.error(e);
         return null;
@@ -311,26 +270,19 @@ export async function getChatAdminister(chatId, token) {
  * @return {Promise<BotInfo>}
  */
 export async function getBot(token) {
-    const resp = await fetch(
-        `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getMe`,
-        {
+    const response = await fetch(
+        `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getMe`,{
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        },
-    ).then((res) => res.json());
-    if (resp.ok) {
-        return {
-            ok: true,
-            info: {
-                name: resp.result.first_name,
-                bot_name: resp.result.username,
-                can_join_groups: resp.result.can_join_groups,
-                can_read_all_group_messages: resp.result.can_read_all_group_messages,
-            },
-        };
-    } else {
-        return resp;
-    }
+            headers: {'Content-Type': 'application/json'},
+        }).then((res) => res.json());
+
+    return response.ok ? {
+              ok: true,
+              info: {
+                  name: response.result.first_name,
+                  bot_name: response.result.username,
+                  can_join_groups: response.result.can_join_groups,
+                  can_read_all_group_messages: response.result.can_read_all_group_messages,
+              },
+          } : response;
 }
