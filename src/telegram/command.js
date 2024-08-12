@@ -161,16 +161,16 @@ async function commandGenerateImg(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandGetHelp(message, command, subcommand, context) {
-    let helpMsg = ENV.I18N.command.help.summary + '\n';
-    helpMsg += Object.keys(commandHandlers)
-        .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
-        .join('\n');
-    helpMsg += Object.keys(CUSTOM_COMMAND)
-        .filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key])
-        .map((key) => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
-        .join('\n');
+    let helpSections = [
+        ENV.I18N.command.help.summary,
+        ...Object.keys(commandHandlers).map(key => `${key}：${ENV.I18N.command.help[key.substring(1)]}`),
+        ...Object.keys(CUSTOM_COMMAND)
+            .filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
+            .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
+    ];
+
     context.CURRENT_CHAT_CONTEXT.parse_mode = null;
-    return sendMessageToTelegramWithContext(context)(helpMsg);
+    return sendMessageToTelegramWithContext(context)(helpSections.join('\n'));
 }
 
 /**
@@ -213,12 +213,9 @@ async function commandActWithLLM(message, command, subcommand, context) {
     if (!act) {
         return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
     }
-    let text = subcommand.trim();
-    if (message.reply_to_message){
-        text = message.reply_to_message.text;
-    }
+    let text = message.reply_to_message ? message.reply_to_message.text : subcommand.trim();
     /* insert EXTRA_MESSAGE_CONTEXT if exists */
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
         text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
     }
     console.log("Act with LLM: ", act, text);
@@ -237,12 +234,8 @@ async function commandActWithLLM(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfig(message, command, subcommand, context) {
-    const kv = subcommand.indexOf('=');
-    if (kv === -1) {
-        return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
-    }
-    let key = subcommand.slice(0, kv);
-    const value = subcommand.slice(kv + 1);
+    let [key, value] = subcommand.split('=');
+    if (!value) return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
     key = ENV_KEY_MAPPER[key] || key;
     if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
@@ -251,11 +244,8 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
     }
     try {
-        context.USER_CONFIG.DEFINE_KEYS.push(key);
-        context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
-        mergeEnvironment(context.USER_CONFIG, {
-            [key]: value,
-        });
+        context.USER_CONFIG.DEFINE_KEYS = [...new Set([...context.USER_CONFIG.DEFINE_KEYS, key])];
+        mergeEnvironment(context.USER_CONFIG, {[key]: value});
         console.log("Update user config: ", key, context.USER_CONFIG[key]);
         await DATABASE.put(
             context.SHARE_CONTEXT.configStoreKey,
@@ -279,26 +269,24 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
 async function commandUpdateUserConfigs(message, command, subcommand, context) {
     try {
         const values = JSON.parse(subcommand);
-        const configKeys = Object.keys(context.USER_CONFIG);
+        const configKeys = new Set(Object.keys(context.USER_CONFIG));
         for (const ent of Object.entries(values)) {
             let [key, value] = ent;
             key = ENV_KEY_MAPPER[key] || key;
             if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
                 return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
             }
-            if (!configKeys.includes(key)) {
+            if (!configKeys.has(key)) {
                 return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
             }
             context.USER_CONFIG.DEFINE_KEYS.push(key);
-            mergeEnvironment(context.USER_CONFIG, {
-                [key]: value,
-            });
+            mergeEnvironment(context.USER_CONFIG, {[key]: value});
             console.log("Update user config: ", key, context.USER_CONFIG[key]);
         }
         context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
         await DATABASE.put(
             context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG))),
+            JSON.stringify(trimUserConfig(context.USER_CONFIG)),
         );
         return sendMessageToTelegramWithContext(context)('Update user config success');
     } catch (e) {
@@ -381,20 +369,22 @@ async function commandSystem(message, command, subcommand, context) {
     let msg = `AGENT: ${JSON.stringify(agent, null, 2)}\n`;
     if (ENV.DEV_MODE) {
         const shareCtx = {...context.SHARE_CONTEXT};
+        const redactKeys = (config) => {
+            const redactedConfig = {...config};
+            for (const key in redactedConfig) {
+                if (/api|token|account|key/i.test(key)) {
+                    redactedConfig[key] = '******';
+                }
+            }
+            return redactedConfig;
+        };
         shareCtx.currentBotToken = '******';
-        context.USER_CONFIG.OPENAI_API_KEY = ['******'];
-        context.USER_CONFIG.AZURE_API_KEY = '******';
-        context.USER_CONFIG.AZURE_COMPLETIONS_API = '******';
-        context.USER_CONFIG.AZURE_DALLE_API = '******';
-        context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID = '******';
-        context.USER_CONFIG.CLOUDFLARE_TOKEN = '******';
-        context.USER_CONFIG.GOOGLE_API_KEY = '******';
-        const config = trimUserConfig(context.USER_CONFIG);
-        msg = '<pre>\n' + msg;
-        msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
+        const redactedUserConfig = redactKeys(context.USER_CONFIG);
+    
+        const config = trimUserConfig(redactedUserConfig);
+        msg = `<pre>\nUSER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
         msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
-        msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n`;
-        msg += '</pre>';
+        msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n</pre>`;
     }
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg);
@@ -411,9 +401,7 @@ async function commandSystem(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandEcho(message, command, subcommand, context) {
-    let msg = '<pre>';
-    msg += JSON.stringify({message}, null, 2);
-    msg += '</pre>';
+    var msg = `<pre>${JSON.stringify({message}, null, 2)}</pre>`;
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg);
 }
@@ -427,6 +415,8 @@ async function commandEcho(message, command, subcommand, context) {
  */
 export async function handleCommandMessage(message, context) {
     initDynamicCommands();
+
+    // 如果是开发模式，添加 /echo 命令用于调试
     if (ENV.DEV_MODE) {
         commandHandlers['/echo'] = {
             help: '[DEBUG ONLY] echo message',
@@ -435,36 +425,38 @@ export async function handleCommandMessage(message, context) {
             needAuth: commandAuthCheck.default,
         };
     }
+
+    // 检查是否有自定义命令
     if (CUSTOM_COMMAND[message.text]) {
         message.text = CUSTOM_COMMAND[message.text];
     }
-    for (const key in commandHandlers) {
-        if (message.text === key || message.text.startsWith(key + ' ')) {
-            const command = commandHandlers[key];
-            try {
-                // 如果存在权限条件
-                if (command.needAuth) {
-                    const roleList = command.needAuth(context.SHARE_CONTEXT.chatType);
-                    if (roleList) {
-                        // 获取身份并判断
-                        const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
-                        if (chatRole === null) {
-                            return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
-                        }
-                        if (!roleList.includes(chatRole)) {
-                            return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
-                        }
+
+    // 查找匹配的命令
+    const command = Object.keys(commandHandlers).find(key => 
+        message.text === key || message.text.startsWith(key + ' ')
+    );
+
+    if (command) {
+        const handler = commandHandlers[command];
+        try {
+            // 如果存在权限条件，进行权限验证
+            if (handler.needAuth) {
+                const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
+                if (roleList) {
+                    const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
+                    if (!chatRole) {
+                        return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
+                    }
+                    if (!roleList.includes(chatRole)) {
+                        return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
                     }
                 }
-            } catch (e) {
-                return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
             }
-            const subcommand = message.text.substring(key.length).trim();
-            try {
-                return await command.fn(message, key, subcommand, context);
-            } catch (e) {
-                return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-            }
+            // 提取子命令并执行
+            const subcommand = message.text.slice(command.length).trim();
+            return await handler.fn(message, command, subcommand, context);
+        } catch (e) {
+            return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
         }
     }
     return null;
@@ -482,43 +474,39 @@ export async function bindCommandForTelegram(token) {
         all_group_chats: [],
         all_chat_administrators: [],
     };
+
+    // 初始化动态命令
     initDynamicCommands();
+
+    // 填充 scopeCommandMap
     for (const key of commandSortList) {
-        if (ENV.HIDE_COMMAND_BUTTONS.includes(key)) {
-            continue;
-        }
-        if (Object.prototype.hasOwnProperty.call(commandHandlers, key) && commandHandlers[key].scopes) {
-            for (const scope of commandHandlers[key].scopes) {
-                if (!scopeCommandMap[scope]) {
-                    scopeCommandMap[scope] = [];
-                }
-                scopeCommandMap[scope].push(key);
-            }
+        if (!ENV.HIDE_COMMAND_BUTTONS.includes(key) &&
+            commandHandlers[key]?.scopes) {
+            commandHandlers[key].scopes.forEach(scope => {
+                scopeCommandMap[scope]?.push(key);
+            });
         }
     }
 
     const result = {};
+    // 发送命令到Telegram
     for (const scope in scopeCommandMap) {
         result[scope] = await fetch(
             `https://api.telegram.org/bot${token}/setMyCommands`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    commands: scopeCommandMap[scope].map((command) => ({
+                    commands: scopeCommandMap[scope].map(command => ({
                         command,
                         description: ENV.I18N.command.help[command.substring(1)] || '',
                     })),
-                    scope: {
-                        type: scope,
-                    },
+                    scope: {type: scope},
                 }),
             },
-        ).then((res) => res.json());
+        ).then(res => res.json());
     }
-    return {ok: true, result: result,  scopeCommandMap: JSON.stringify(scopeCommandMap)};
+    return {ok: true, result, scopeCommandMap: JSON.stringify(scopeCommandMap)};
 }
 
 /**
