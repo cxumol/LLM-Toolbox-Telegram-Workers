@@ -499,7 +499,7 @@ export async function bindCommandForTelegram(token) {
                 body: JSON.stringify({
                     commands: scopeCommandMap[scope].map(key => ({
                         command: key,
-                        description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name,
+                        description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name || "No description",
                     })),
                     scope: {type: scope},
                 }),
