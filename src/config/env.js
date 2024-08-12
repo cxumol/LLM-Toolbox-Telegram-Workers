@@ -19,6 +19,8 @@ export class UserConfig {
     SYSTEM_INIT_MESSAGE = null;
     // 全局默认初始化消息角色
     SYSTEM_INIT_MESSAGE_ROLE = 'system';
+    // 自定义动作
+    CUSTOM_ACTTIONS = {};
 
     // -- Open AI 配置 --
     //
@@ -43,21 +45,16 @@ export class UserConfig {
     DALL_E_IMAGE_STYLE = 'vivid';
 
     // -- AZURE 配置 --
-    //
-    // Azure API Key
+
     AZURE_API_KEY = null;
-    // Azure Completions API
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
     AZURE_COMPLETIONS_API = null;
-    // Azure DallE API
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
     AZURE_DALLE_API = null;
 
     // -- Workers 配置 --
-    //
-    // Cloudflare Account ID
+
     CLOUDFLARE_ACCOUNT_ID = null;
-    // Cloudflare Token
     CLOUDFLARE_TOKEN = null;
     // Text Generation Model
     WORKERS_CHAT_MODEL = '@cf/mistral/mistral-7b-instruct-v0.1 ';
