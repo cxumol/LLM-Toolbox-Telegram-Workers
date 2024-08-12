@@ -163,7 +163,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
 async function commandGetHelp(message, command, subcommand, context) {
     let helpSections = [
         ENV.I18N.command.help.summary,
-        ...Object.keys(commandHandlers).map(key => `${key}：${ENV.I18N.command.help[key.substring(1)]}`),
+        ...Object.keys(commandHandlers).map(key => `${key}：${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name}`),
         ...Object.keys(CUSTOM_COMMAND)
             .filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
@@ -497,9 +497,9 @@ export async function bindCommandForTelegram(token) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    commands: scopeCommandMap[scope].map(command => ({
-                        command,
-                        description: ENV.I18N.command.help[command.substring(1)] || ENV.I18N.acts[command.slice('/act_'.length)].name,
+                    commands: scopeCommandMap[scope].map(key => ({
+                        command: key,
+                        description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name,
                     })),
                     scope: {type: scope},
                 }),
@@ -517,7 +517,7 @@ export function commandsDocument() {
     return Object.keys(commandHandlers).map((key) => {
         return {
             command: key,
-            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)].name,
+            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name,
         };
     });
 }

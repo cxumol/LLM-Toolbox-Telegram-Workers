@@ -14,8 +14,8 @@ export default {
         "delenv": "Delete user configuration, the complete command format is /delenv KEY",
         "clearenv": "Clear all user configuration",
         "system": "View some system information",
-        "redo": "Redo the last conversation, /redo with modified content or directly /redo",
-        "echo": "Echo the message"
+        "echo": "Echo the message (debug mode only)",
+        "act": "Select the action you want to act"
       },
       "new": {
         "new_chat_start": "A new conversation has started"
