@@ -94,7 +94,7 @@ async function msgFilterUnsupportedMessage(message, context) {
 }
 
 /**
- * 处理群消息
+ * 过滤群消息, 除去AT部分
  *
  * @param {TelegramMessage} message
  * @param {ContextType} context
@@ -102,71 +102,37 @@ async function msgFilterUnsupportedMessage(message, context) {
  */
 async function msgHandleGroupMessage(message, context) {
     // 非群组消息不作处理
-    if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-        return null;
-    }
+    if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) return null;
+    // 回复机器人的消息不作处理
+    // if (message.reply_to_message?.from.is_bot) return null;
+    // if (`${message.reply_to_message?.from.id}` === context.SHARE_CONTEXT.currentBotId) return null;
 
     // 处理群组消息，过滤掉AT部分
     let botName = context.SHARE_CONTEXT.currentBotName;
-    if (message.reply_to_message) {
-        if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
-            return null;
-        } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
-            context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
-        }
-    }
     if (!botName) {
         const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-        context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
-        botName = res.info.bot_name;
+        botName = context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
     }
-    if (!botName) {
-        throw new Error('Not set bot name');
-    }
-    if (!message.entities) {
-       throw new Error('No entities');
-    }
+    if (!botName || !message.entities || !message.text) throw new Error('Invalid message');
 
     let { text } = message;
-    if (!text) {
-        throw new Error('Empty message');
-    }
-
-    let content = '';
-    let offset = 0;
-    let mentioned = false;
-
+    let content = '', mentioned = false, offset = 0;
     for (const entity of message.entities) {
+        // 只处理bot_command, mention, text_mention
+        if (!['bot_command', 'mention', 'text_mention'].includes(entity.type)) continue;
+        const mention = message.text.substring(entity.offset, entity.offset + entity.length);
         switch (entity.type) {
             case 'bot_command':
-                if (!mentioned) {
-                    const mention = text.substring(
-                        entity.offset,
-                        entity.offset + entity.length,
-                    );
-                    if (mention.endsWith(botName)) {
-                        mentioned = true;
-                    }
-                    const cmd = mention
-                        .replaceAll('@' + botName, '')
-                        .replaceAll(botName, '')
-                        .trim();
-                    content += cmd;
+                if (!mentioned && mention.endsWith(botName)) {
+                    mentioned = true;
+                    content += mention.replaceAll('@' + botName, '').replaceAll(botName, '').trim();
                     offset = entity.offset + entity.length;
                 }
                 break;
             case 'mention':
             case 'text_mention':
-                if (!mentioned) {
-                    const mention = text.substring(
-                        entity.offset,
-                        entity.offset + entity.length,
-                    );
-                    if (mention === botName || mention === '@' + botName) {
-                        mentioned = true;
-                    }
-                }
-                content += text.substring(offset, entity.offset);
+                if (!mentioned && (mention === botName || mention === '@' + botName)) mentioned = true;
+                content += message.text.substring(offset, entity.offset);
                 offset = entity.offset + entity.length;
                 break;
         }
