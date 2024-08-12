@@ -281,7 +281,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
     // for (const { key, value } of updates) {
     //     context.USER_CONFIG[key] = value;
     // }
-    mergeEnvironment(context.USER_CONFIG, Object.fromEntries(updates));
+    mergeEnvironment(context.USER_CONFIG, Object.fromEntries( updates.map( ({ key, value }) => [key, value] ) ) );
 
     context.USER_CONFIG.DEFINE_KEYS = updates.map(u => u.key).filter(k => context.USER_CONFIG[k] !== null);
 
