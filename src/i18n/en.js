@@ -11,7 +11,7 @@ export default {
         "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`",
         "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE",
         "setenvs": "Batch set user configurations, the complete command format is /setenvs {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}",
-        "delenv": "Delete user configuration, the complete command format is /delenv KEY",
+        "delenv": "Delete user configuration, the complete command format is `/delenv KEY`",
         "clearenv": "Clear all user configuration",
         "system": "View some system information",
         "echo": "Echo the message (debug mode only)",
