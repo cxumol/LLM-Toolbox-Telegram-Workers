@@ -9,7 +9,6 @@ export default {
         "help": "Get command help",
         "start": "Get your ID and start a new conversation",
         "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`",
-        "version": "Get the current version number to determine whether to update",
         "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE",
         "setenvs": "Batch set user configurations, the complete command format is /setenvs {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}",
         "delenv": "Delete user configuration, the complete command format is /delenv KEY",

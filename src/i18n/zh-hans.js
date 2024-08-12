@@ -9,7 +9,6 @@ export default {
         "help": "获取命令帮助",
         "start": "获取你的ID, 并发起新的对话",
         "img": "生成一张图片, 命令完整格式为 `/img 图片描述`, 例如`/img 月光下的沙滩`",
-        "version": "获取当前版本号, 判断是否需要更新",
         "setenv": "设置用户配置，命令完整格式为 /setenv KEY=VALUE",
         "setenvs": "批量设置用户配置, 命令完整格式为 /setenvs {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}",
         "delenv": "删除用户配置，命令完整格式为 /delenv KEY",

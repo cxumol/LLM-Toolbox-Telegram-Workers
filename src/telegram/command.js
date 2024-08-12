@@ -51,7 +51,6 @@ const commandSortList = [
     '/img',
     '/setenv',
     '/delenv',
-    '/version',
     '/system',
     '/help',
 ];
@@ -81,11 +80,6 @@ const commandHandlers = {
         scopes: ['all_private_chats', 'all_chat_administrators'],
         fn: commandGenerateImg,
         needAuth: commandAuthCheck.shareModeGroup,
-    },
-    '/version': {
-        scopes: ['all_private_chats', 'all_chat_administrators'],
-        fn: commandFetchUpdate,
-        needAuth: commandAuthCheck.default,
     },
     '/setenv': {
         scopes: [],
@@ -356,39 +350,6 @@ async function commandClearUserConfig(message, command, subcommand, context) {
             JSON.stringify({}),
         );
         return sendMessageToTelegramWithContext(context)('Clear user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-    }
-}
-
-
-/**
- * /version 获得更新信息
- *
- * @param {TelegramMessage} message
- * @param {string} command
- * @param {string} subcommand
- * @param {ContextType} context
- * @return {Promise<Response>}
- */
-async function commandFetchUpdate(message, command, subcommand, context) {
-
-    const current = {
-        ts: ENV.BUILD_TIMESTAMP,
-        sha: ENV.BUILD_VERSION,
-    };
-
-    try {
-        const info = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
-        const online = await fetch(info).then((r) => r.json());
-        const timeFormat = (ts) => {
-            return new Date(ts * 1000).toLocaleString('en-US', {});
-        };
-        if (current.ts < online.ts) {
-            return sendMessageToTelegramWithContext(context)(`New version detected: ${online.sha}(${timeFormat(online.ts)})\nCurrent version: ${current.sha}(${timeFormat(current.ts)})`);
-        } else {
-            return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${timeFormat(current.ts)}) is up to date`);
-        }
     } catch (e) {
         return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     }
