@@ -114,15 +114,22 @@ const commandHandlers = {
     },
 };
 
+/* init dynamic commands */
+function initDynamicCommands() {
+    registerActCommands();
+}
+
 /* register /act_* commands */
-Object.keys(ENV.I18N.acts).forEach((act) => {
-    commandHandlers[`/act_${act}`] = {
-        scopes: [],
-        fn: commandActWithLLM,
-        needAuth: commandAuthCheck.shareModeGroup,
-    };
-    commandSortList.splice(1,0,`/act_${act}`);
-});
+function registerActCommands() {
+    Object.keys(ENV.I18N.acts).forEach((act) => {
+        commandHandlers[`/act_${act}`] = {
+            scopes: [],
+            fn: commandActWithLLM,
+            needAuth: commandAuthCheck.shareModeGroup,
+        };
+        commandSortList.splice(1,0,`/act_${act}`);
+    });
+}
 
 /**
  * /img 命令
@@ -168,6 +175,7 @@ async function commandGetHelp(message, command, subcommand, context) {
         .filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key])
         .map((key) => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
         .join('\n');
+    context.CURRENT_CHAT_CONTEXT.parse_mode = null;
     return sendMessageToTelegramWithContext(context)(helpMsg);
 }
 
@@ -460,6 +468,7 @@ async function commandEcho(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 export async function handleCommandMessage(message, context) {
+    initDynamicCommands();
     if (ENV.DEV_MODE) {
         commandHandlers['/echo'] = {
             help: '[DEBUG ONLY] echo message',
@@ -515,6 +524,7 @@ export async function bindCommandForTelegram(token) {
         all_group_chats: [],
         all_chat_administrators: [],
     };
+    initDynamicCommands();
     for (const key of commandSortList) {
         if (ENV.HIDE_COMMAND_BUTTONS.includes(key)) {
             continue;
@@ -550,7 +560,7 @@ export async function bindCommandForTelegram(token) {
             },
         ).then((res) => res.json());
     }
-    return {ok: true, result: result};
+    return {ok: true, result: result,  scopeCommandMap: JSON.stringify(scopeCommandMap)};
 }
 
 /**
