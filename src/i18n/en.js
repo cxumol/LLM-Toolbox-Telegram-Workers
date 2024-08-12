@@ -8,14 +8,13 @@ export default {
         "summary": "The following commands are currently supported:\n",
         "help": "Get command help",
         "start": "Get your ID and start a new conversation",
+        "act": "Select the action you want to act", 
         "img": "Generate an image, `/img beach at moonlight`",
-        "setenv": "Set user configuration, `/setenv KEY=VALUE`",
-        "setenvs": "Batch set user configurations, `/setenvs {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`",
-        "delenv": "Delete user configuration, `/delenv MY_KEY1`",
-        "clearenv": "Clear all user configuration",
-        "system": "View some system information",
-        "echo": "Echo the message (debug mode only)",
-        "act": "Select the action you want to act"
+        "mod_env_set": "Set user configuration, `/mod_env_set KEY=VALUE`", 
+        "mod_env_set_batch": "Batch set user configurations, `/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`",
+        "mod_env_del": "Delete user configuration, `/mod_env_del MY_KEY1`", 
+        "mod_env_del_all": "Clear all user configuration", 
+        "mod_system": "View some system information"
       },
       "new": {
         "new_chat_start": "A new conversation has started"
