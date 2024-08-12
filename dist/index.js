@@ -64,9 +64,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723440490;
+  BUILD_TIMESTAMP = 1723452350;
   // 当前版本 commit id
-  BUILD_VERSION = "5e7a31c";
+  BUILD_VERSION = "8f38e45";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -357,22 +357,14 @@ function handleEscape(text, type = "text") {
 
 // src/telegram/telegram.js
 async function sendMessage(message, token, context) {
-  let body = {
-    text: message
-  };
-  for (let key of Object.keys(context))
-    context[key] !== void 0 && context[key] !== null && (body[key] = context[key]);
-  let method = "sendMessage";
-  return context?.message_id && (method = "editMessageText"), await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    }
-  );
+  let validContext = Object.fromEntries(
+    Object.entries(context).filter(([, value]) => value != null)
+  ), body = { text: message, ...validContext }, botMethod = context?.message_id ? "editMessageText" : "sendMessage";
+  return fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${botMethod}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
 }
 async function sendMessageToTelegram(message, token, context) {
   let chatContext = context, originMessage = message, limit = 4096;
@@ -396,9 +388,7 @@ function deleteMessageFromTelegramWithContext(context) {
     `${ENV.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: context.CURRENT_CHAT_CONTEXT.chat_id,
         message_id: messageId
@@ -407,27 +397,12 @@ function deleteMessageFromTelegramWithContext(context) {
   );
 }
 async function sendPhotoToTelegram(photo, token, context) {
-  let url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`, body, headers = {};
-  if (typeof photo == "string") {
-    body = {
-      photo
-    };
-    for (let key of Object.keys(context))
-      context[key] !== void 0 && context[key] !== null && (body[key] = context[key]);
-    body = JSON.stringify(body), headers["Content-Type"] = "application/json";
-  } else {
-    body = new FormData(), body.append("photo", photo, "photo.png");
-    for (let key of Object.keys(context))
-      context[key] !== void 0 && context[key] !== null && body.append(key, `${context[key]}`);
-  }
-  return await fetch(
-    url,
-    {
-      method: "POST",
-      headers,
-      body
-    }
-  );
+  let url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`, isPhotoString = typeof photo == "string", filteredContext = Object.fromEntries(Object.entries(context).filter(([k, v]) => v != null)), body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(), headers = isPhotoString ? { "Content-Type": "application/json" } : {};
+  return isPhotoString || (body.append("photo", photo, "photo.png"), Object.entries(filteredContext).forEach(([key, value]) => body.append(key, `${value}`))), await fetch(url, {
+    method: "POST",
+    headers,
+    body
+  });
 }
 function sendPhotoToTelegramWithContext(context) {
   return (url) => sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
@@ -437,9 +412,7 @@ async function sendChatActionToTelegram(action, token, chatId) {
     `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendChatAction`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         action
@@ -455,12 +428,8 @@ async function bindTelegramWebHook(token, url) {
     `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/setWebhook`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        url
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
     }
   ).then((res) => res.json());
 }
@@ -481,12 +450,7 @@ async function getChatRole(id, groupAdminKey, chatId, token) {
       { expiration: Date.now() / 1e3 + 120 }
     );
   }
-  for (let i = 0; i < groupAdmin.length; i++) {
-    let user = groupAdmin[i];
-    if (user.user.id === id)
-      return user.status;
-  }
-  return "member";
+  return groupAdmin.find((u) => u.user.id === id)?.status || "member";
 }
 function getChatRoleWithContext(context) {
   return (id) => getChatRole(id, context.SHARE_CONTEXT.groupAdminKey, context.CURRENT_CHAT_CONTEXT.chat_id, context.SHARE_CONTEXT.currentBotToken);
@@ -497,37 +461,32 @@ async function getChatAdminister(chatId, token) {
       `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getChatAdministrators`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId })
       }
     ).then((res) => res.json());
-    if (resp.ok)
-      return resp.result;
+    return resp.ok ? resp.result : null;
   } catch (e) {
     return console.error(e), null;
   }
 }
 async function getBot(token) {
-  let resp = await fetch(
+  let response = await fetch(
     `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getMe`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      }
+      headers: { "Content-Type": "application/json" }
     }
   ).then((res) => res.json());
-  return resp.ok ? {
+  return response.ok ? {
     ok: !0,
     info: {
-      name: resp.result.first_name,
-      bot_name: resp.result.username,
-      can_join_groups: resp.result.can_join_groups,
-      can_read_all_group_messages: resp.result.can_read_all_group_messages
+      name: response.result.first_name,
+      bot_name: response.result.username,
+      can_join_groups: response.result.can_join_groups,
+      can_read_all_group_messages: response.result.can_read_all_group_messages
     }
-  } : resp;
+  } : response;
 }
 
 // src/agent/stream.js
@@ -1358,48 +1317,27 @@ async function msgHandleGroupMessage(message, context) {
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType))
     return null;
   let botName = context.SHARE_CONTEXT.currentBotName;
-  if (message.reply_to_message) {
-    if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId)
-      return null;
-    ENV.EXTRA_MESSAGE_CONTEXT && (context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message);
-  }
   if (!botName) {
     let res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-    context.SHARE_CONTEXT.currentBotName = res.info.bot_name, botName = res.info.bot_name;
+    botName = context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
   }
-  if (!botName)
-    throw new Error("Not set bot name");
-  if (!message.entities)
-    throw new Error("No entities");
-  let { text } = message;
-  if (!text)
-    throw new Error("Empty message");
-  let content = "", offset = 0, mentioned = !1;
-  for (let entity of message.entities)
+  if (!botName || !message.entities || !message.text)
+    throw new Error("Invalid message");
+  let { text } = message, content = "", mentioned = !1, offset = 0;
+  for (let entity of message.entities) {
+    if (!["bot_command", "mention", "text_mention"].includes(entity.type))
+      continue;
+    let mention = message.text.substring(entity.offset, entity.offset + entity.length);
     switch (entity.type) {
       case "bot_command":
-        if (!mentioned) {
-          let mention = text.substring(
-            entity.offset,
-            entity.offset + entity.length
-          );
-          mention.endsWith(botName) && (mentioned = !0);
-          let cmd = mention.replaceAll("@" + botName, "").replaceAll(botName, "").trim();
-          content += cmd, offset = entity.offset + entity.length;
-        }
+        !mentioned && mention.endsWith(botName) && (mentioned = !0, content += mention.replaceAll("@" + botName, "").replaceAll(botName, "").trim(), offset = entity.offset + entity.length);
         break;
       case "mention":
       case "text_mention":
-        if (!mentioned) {
-          let mention = text.substring(
-            entity.offset,
-            entity.offset + entity.length
-          );
-          (mention === botName || mention === "@" + botName) && (mentioned = !0);
-        }
-        content += text.substring(offset, entity.offset), offset = entity.offset + entity.length;
+        !mentioned && (mention === botName || mention === "@" + botName) && (mentioned = !0), content += message.text.substring(offset, entity.offset), offset = entity.offset + entity.length;
         break;
     }
+  }
   if (content += text.substring(offset, text.length), message.text = content.trim(), !mentioned)
     throw new Error("No mentioned");
   return null;
@@ -1432,7 +1370,7 @@ async function handleMessage(request) {
     // 处理命令消息
     msgHandleCommand
     // 与llm聊天
-    // msgactWithLLM,
+    // msgChatWithLLM,
   ];
   for (let handler of handlers)
     try {
