@@ -189,6 +189,7 @@ class LineDecoder {
     constructor() {
         this.buffer = [];
         this.trailingCR = false;
+        this.textDecoder = new TextDecoder('utf8');
     }
 
     decode(chunk) {
@@ -221,30 +222,14 @@ class LineDecoder {
     }
 
     decodeText(bytes) {
-        var _a;
         if (bytes == null)
             return '';
         if (typeof bytes === 'string')
             return bytes;
-        // Node:
-        if (typeof Buffer !== 'undefined') {
-            if (bytes instanceof Buffer) {
-                return bytes.toString();
-            }
-            if (bytes instanceof Uint8Array) {
-                return Buffer.from(bytes).toString();
-            }
-            throw new Error(`Unexpected: received non-Uint8Array (${bytes.constructor.name}) stream chunk in an environment with a global "Buffer" defined, which this library assumes to be Node. Please report this error.`);
+        if (bytes instanceof Uint8Array || bytes instanceof ArrayBuffer) {
+            return this.textDecoder.decode(bytes, {stream: true});
         }
-        // Browser
-        if (typeof TextDecoder !== 'undefined') {
-            if (bytes instanceof Uint8Array || bytes instanceof ArrayBuffer) {
-                (_a = this.textDecoder) !== null && _a !== void 0 ? _a : (this.textDecoder = new TextDecoder('utf8'));
-                return this.textDecoder.decode(bytes, {stream: true});
-            }
-            throw new Error(`Unexpected: received non-Uint8Array/ArrayBuffer (${bytes.constructor.name}) in a web platform. Please report this error.`);
-        }
-        throw new Error(`Unexpected: neither Buffer nor TextDecoder are available as globals. Please report this error.`);
+        throw new Error(`Unexpected input type: ${bytes.constructor.name}. Expected Uint8Array or ArrayBuffer.`);
     }
 
     flush() {
