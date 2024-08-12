@@ -163,13 +163,12 @@ async function commandGenerateImg(message, command, subcommand, context) {
 async function commandGetHelp(message, command, subcommand, context) {
     let helpSections = [
         ENV.I18N.command.help.summary,
-        ...Object.keys(commandHandlers).map(key => `${key}：${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name}`),
+        ...Object.keys(commandHandlers).map(key => `${key.replaceAll('_', `\\_`)}：${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name}`),
         ...Object.keys(CUSTOM_COMMAND)
             .filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
     ];
 
-    context.CURRENT_CHAT_CONTEXT.parse_mode = null;
     return sendMessageToTelegramWithContext(context)(helpSections.join('\n'));
 }
 
@@ -188,7 +187,7 @@ async function commandActUndefined(message, command, subcommand, context) {
             remove_keyboard: true,
             selective: true,
         });
-        const msgText=Object.keys(ENV.I18N.acts).map(key => `/act_${key}：${ENV.I18N.acts[key].name}`).join('\n');
+        const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
         
         return sendMessageToTelegramWithContext(context)(msgText);
     } catch (e) {
