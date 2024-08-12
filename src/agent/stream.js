@@ -130,55 +130,6 @@ export function openaiSseJsonParser(sse) {
     return {};
 }
 
-export function cohereSseJsonParser(sse) {
-    // example:
-    //      event: text-generation
-    //      data: {"is_finished":false,"event_type":"text-generation","text":"?"}
-    //
-    //      event: stream-end
-    //      data: {"is_finished":true,...}
-    switch (sse.event) {
-        case 'text-generation':
-            try {
-                return {data: JSON.parse(sse.data)};
-            } catch (e) {
-                console.error(e, sse.data);
-                return {};
-            }
-        case 'stream-start':
-            return {};
-        case 'stream-end':
-            return {finish: true};
-        default:
-            return {};
-    }
-}
-
-export function anthropicSseJsonParser(sse) {
-    // example:
-    //      event: content_block_delta
-    //      data: {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello"}}
-    //      event: message_stop
-    //      data: {"type": "message_stop"}
-    switch (sse.event) {
-        case 'content_block_delta':
-            try {
-                return {data: JSON.parse(sse.data)};
-            } catch (e) {
-                console.error(e, sse.data);
-                return {};
-            }
-        case 'message_start':
-        case 'content_block_start':
-        case 'content_block_stop':
-            return {};
-        case 'message_stop':
-            return {finish: true};
-        default:
-            return {};
-    }
-}
-
 /**
  * A re-implementation of httpx's `LineDecoder` in Python that handles incrementally
  * reading lines from text.
