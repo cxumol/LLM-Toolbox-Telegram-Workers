@@ -188,11 +188,9 @@ async function commandActUndefined(message, command, subcommand, context) {
             remove_keyboard: true,
             selective: true,
         });
-        if (command === '/act') {
-            return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.act);
-        } else {
-            return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.act}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
-        }
+        const msgText=Object.keys(ENV.I18N.acts).map(key => `/act_${key}：${ENV.I18N.acts[key].name}`).join('\n');
+        
+        return sendMessageToTelegramWithContext(context)(msgText);
     } catch (e) {
         return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     }
