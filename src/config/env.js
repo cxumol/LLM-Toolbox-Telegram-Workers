@@ -11,7 +11,7 @@ export class UserConfig {
 
     // -- 通用配置 --
     //
-    // AI提供商: auto, openai, azure, workers, gemini, mistral
+    // AI提供商: auto, openai, azure, workers, gemini
     AI_PROVIDER = 'auto';
     // AI图片提供商: auto, openai, azure, workers
     AI_IMAGE_PROVIDER = 'auto';
@@ -73,15 +73,6 @@ export class UserConfig {
     // Google Gemini Model
     GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
 
-    // -- Mistral 配置 --
-    //
-    // mistral api key
-    MISTRAL_API_KEY = null;
-    // mistral api base
-    MISTRAL_API_BASE = 'https://api.mistral.ai/v1';
-    // mistral api model
-    MISTRAL_CHAT_MODEL = 'mistral-tiny';
-
     // -- Cohere 配置 --
     //
     // cohere api key
@@ -91,14 +82,6 @@ export class UserConfig {
     // cohere api model
     COHERE_CHAT_MODEL = "command-r-plus";
 
-    // -- Anthropic 配置 --
-    //
-    // Anthropic api key
-    ANTHROPIC_API_KEY = null;
-    // Anthropic api base
-    ANTHROPIC_API_BASE = "https://api.anthropic.com/v1";
-    // Anthropic api model
-    ANTHROPIC_CHAT_MODEL = "claude-3-haiku-20240307";
 }
 
 
@@ -146,9 +129,7 @@ class Environment {
         // 默认为API BASE 防止被替换导致token 泄露
         'OPENAI_API_BASE',
         'GOOGLE_COMPLETIONS_API',
-        'MISTRAL_API_BASE',
         'COHERE_API_BASE',
-        'ANTHROPIC_API_BASE',
         'AZURE_COMPLETIONS_API',
         'AZURE_DALLE_API',
     ];
@@ -220,9 +201,7 @@ const ENV_TYPES = {
     CLOUDFLARE_ACCOUNT_ID: 'string',
     CLOUDFLARE_TOKEN: 'string',
     GOOGLE_API_KEY: 'string',
-    MISTRAL_API_KEY: 'string',
     COHERE_API_KEY: 'string',
-    ANTHROPIC_API_KEY: 'string',
 };
 
 export const ENV_KEY_MAPPER = {

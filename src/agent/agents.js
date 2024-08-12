@@ -1,9 +1,7 @@
 import {isOpenAIEnable, requestCompletionsFromOpenAI, requestImageFromOpenAI} from "./openai.js";
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from "./workersai.js";
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from "./gemini.js";
-import {isMistralAIEnable, requestCompletionsFromMistralAI} from "./mistralai.js";
 import {isCohereAIEnable, requestCompletionsFromCohereAI} from "./cohere.js";
-import {isAnthropicAIEnable, requestCompletionsFromAnthropicAI} from "./anthropic.js";
 import {
     isAzureEnable,
     isAzureImageEnable,
@@ -39,20 +37,10 @@ export const chatLlmAgents = [
         request: requestCompletionsFromGeminiAI
     },
     {
-        name: "mistral",
-        enable: isMistralAIEnable,
-        request: requestCompletionsFromMistralAI
-    },
-    {
         name: "cohere",
         enable: isCohereAIEnable,
         request: requestCompletionsFromCohereAI
     },
-    {
-        name: "anthropic",
-        enable: isAnthropicAIEnable,
-        request: requestCompletionsFromAnthropicAI
-    }
 ];
 
 /**
@@ -75,12 +63,8 @@ export function currentChatModel(agentName, context) {
             return context.USER_CONFIG.WORKERS_CHAT_MODEL;
         case "gemini":
             return context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
-        case "mistral":
-            return context.USER_CONFIG.MISTRAL_CHAT_MODEL;
         case "cohere":
             return context.USER_CONFIG.COHERE_CHAT_MODEL;
-        case "anthropic":
-            return context.USER_CONFIG.ANTHROPIC_CHAT_MODEL;
         default:
             return null;
     }
@@ -100,12 +84,8 @@ export function chatModelKey(agentName) {
             return "WORKERS_CHAT_MODEL";
         case "gemini":
             return "GOOGLE_COMPLETIONS_MODEL";
-        case "mistral":
-            return "MISTRAL_CHAT_MODEL";
         case "cohere":
             return "COHERE_CHAT_MODEL";
-        case "anthropic":
-            return "ANTHROPIC_CHAT_MODEL";
         default:
             return null;
     }
