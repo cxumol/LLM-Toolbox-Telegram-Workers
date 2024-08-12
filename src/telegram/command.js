@@ -221,24 +221,7 @@ async function commandActWithLLM(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfig(message, command, subcommand, context) {
-    let [key, value] = subcommand.split('=');
-    if (!value) return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
-    key = ENV_KEY_MAPPER[key] || key;
-    if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
-        return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-    }
-    if (!Object.keys(context.USER_CONFIG).includes(key)) {
-        return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-    }
-
-    context.USER_CONFIG.DEFINE_KEYS = [...new Set([...context.USER_CONFIG.DEFINE_KEYS, key])];
-    mergeEnvironment(context.USER_CONFIG, {[key]: value});
-    console.log("Update user config: ", key, context.USER_CONFIG[key]);
-    await DATABASE.put(
-        context.SHARE_CONTEXT.configStoreKey,
-        JSON.stringify(trimUserConfig(context.USER_CONFIG)),
-    );
-    return sendMessageToTelegramWithContext(context)('Update user config success');
+    return _handleUserConfig(message, command, subcommand, context, 'update');
 }
 
 /**
@@ -251,27 +234,7 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfigs(message, command, subcommand, context) {
-    const values = JSON.parse(subcommand);
-    const configKeys = new Set(Object.keys(context.USER_CONFIG));
-    for (const ent of Object.entries(values)) {
-        let [key, value] = ent;
-        key = ENV_KEY_MAPPER[key] || key;
-        if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
-            return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-        }
-        if (!configKeys.has(key)) {
-            return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-        }
-        context.USER_CONFIG.DEFINE_KEYS.push(key);
-        mergeEnvironment(context.USER_CONFIG, {[key]: value});
-        console.log("Update user config: ", key, context.USER_CONFIG[key]);
-    }
-    context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
-    await DATABASE.put(
-        context.SHARE_CONTEXT.configStoreKey,
-        JSON.stringify(trimUserConfig(context.USER_CONFIG)),
-    );
-    return sendMessageToTelegramWithContext(context)('Update user config success');
+    return _handleUserConfig(message, command, subcommand, context, 'batchUpdate');
 }
 
 /**
@@ -284,18 +247,51 @@ async function commandUpdateUserConfigs(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandDeleteUserConfig(message, command, subcommand, context) {
-    if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
-        const msg = `Key ${subcommand} is locked`;
-        return sendMessageToTelegramWithContext(context)(msg);
+    _handleUserConfig(message, command, subcommand, context, 'delete');
+}
+
+/**
+ * 处理用户配置的更新和删除
+ * 
+ * @param {TelegramMessage} message - 来自Telegram的消息对象
+ * @param {string} command - 命令名称
+ * @param {string} subcommand - 子命令字符串，可能包含要设置的配置键和值
+ * @param {ContextType} context - 上下文对象，包含用户配置等信息
+ * @param {string} operation - 操作类型，如 'update', 'batchUpdate' 或 'delete'
+ * @return {Promise<Response>}
+ */
+async function _handleUserConfig(message, command, subcommand, context, operation) {
+    let updates = [];
+
+    if (operation === 'delete') {
+        if (!Object.keys(context.USER_CONFIG).includes(subcommand)) {
+            return sendMessageToTelegramWithContext(context)(`Key ${subcommand} not found`);
+        }
+        updates.push({ key: subcommand, value: null });
+    } else if (['update', 'batchUpdate'].includes(operation)) {
+        const entries = operation === 'update' ? [subcommand.split('=')] : Object.entries(JSON.parse(subcommand));
+        for (const [k, v] of entries) {
+            let key = ENV_KEY_MAPPER[k] || k;
+            if (!Object.keys(context.USER_CONFIG).includes(key) || ENV.LOCK_USER_CONFIG_KEYS.includes(key))
+                return sendMessageToTelegramWithContext(context)(`Key "${key}" not found or locked`);
+            updates.push({ key, value: v });
+        }
     }
 
-    context.USER_CONFIG[subcommand] = null;
-    context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand);
+    // for (const { key, value } of updates) {
+    //     context.USER_CONFIG[key] = value;
+    // }
+    mergeEnvironment(context.USER_CONFIG, Object.fromEntries(updates));
+
+    context.USER_CONFIG.DEFINE_KEYS = updates.map(u => u.key).filter(k => context.USER_CONFIG[k] !== null);
+
     await DATABASE.put(
         context.SHARE_CONTEXT.configStoreKey,
         JSON.stringify(trimUserConfig(context.USER_CONFIG)),
     );
-    return sendMessageToTelegramWithContext(context)('Delete user config success');
+
+    const action = operation === 'delete' ? 'Deleted' : 'Updated';
+    return sendMessageToTelegramWithContext(context)(`${action} user config successfully`);
 }
 
 
