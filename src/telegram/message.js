@@ -162,20 +162,6 @@ async function msgHandleCommand(message, context) {
     return await handleCommandMessage(message, context);
 }
 
-/**
- * 与llm聊天
- *
- * @param {TelegramMessage} message
- * @param {ContextType} context
- * @return {Promise<Response>}
- */
-async function msgactWithLLM(message, context) {
-    let { text } = message;
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT.extraMessageContext && context.SHARE_CONTEXT.extraMessageContext.text) {
-        text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
-    }
-    return actWithLLM({message: text}, context, null);
-}
 
 
 /**
@@ -232,7 +218,7 @@ export async function handleMessage(request) {
         // 处理命令消息
         msgHandleCommand,
         // 与llm聊天
-        // msgactWithLLM,
+        // msgChatWithLLM,
     ];
 
     for (const handler of handlers) {
