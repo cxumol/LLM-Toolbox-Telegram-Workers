@@ -98,7 +98,7 @@ export async function actWithLLM(params, context) {
         return msgTG(context)(answer);
     } catch (e) {
         context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-        return msgTG(context)(`Error: ${e.message}`.substring(0, 2048));
+        return msgTG(context)(`Error: ${e.message}`.substring(0, 2000));
     }
 }
 
