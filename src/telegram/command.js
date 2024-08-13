@@ -171,7 +171,7 @@ async function commandGetHelp(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandActUndefined(message, command, subcommand, context) {
-    context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({ remove_keyboard: true,selective: true});
+    context.CURRENT_CHAT_CONTEXT.reply_markup = '{"remove_keyboard":true,"selective":true}';
     const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
     return sendMessageToTelegramWithContext(context)(msgText);
 }
@@ -192,7 +192,7 @@ async function commandActWithLLM(message, command, subcommand, context) {
 
     let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
     /* insert EXTRA_MESSAGE_CONTEXT if exists */
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text)
+    if (context.SHARE_CONTEXT?.extraMessageContext?.text)
         text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
 
     return actWithLLM({message: text, prompt: act.prompt}, context);
@@ -296,7 +296,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
 async function commandClearUserConfig(message, command, subcommand, context) {
     await DATABASE.put(
         context.SHARE_CONTEXT.configStoreKey,
-        JSON.stringify({}),
+        "{}",
     );
     return sendMessageToTelegramWithContext(context)('Clear user config success');
 }
@@ -321,25 +321,21 @@ async function commandSystem(message, command, subcommand, context) {
     agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context);
     agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
 
-    let msg = `AGENT: ${JSON.stringify(agent, null, 2)}\n`;
+    let msg = `AGENT: ${_pretty(agent)}\n`;
     if (ENV.DEV_MODE) {
-        const shareCtx = {...context.SHARE_CONTEXT};
-        const redactKeys = (config) => {
-            const redactedConfig = {...config};
-            for (const key in redactedConfig) {
-                if (/api|token|account|key/i.test(key)) {
-                    redactedConfig[key] = '******';
-                }
+        function redact(config){
+            const redacted = {...config};
+            for (const key in redacted) {
+                if (/api|token|account|key/i.test(key)) config[key] = '******';
             }
-            return redactedConfig;
+            return redacted;
         };
+        const shareCtx = {...context.SHARE_CONTEXT};
         shareCtx.currentBotToken = '******';
-        const redactedUserConfig = redactKeys(context.USER_CONFIG);
-    
-        const config = trimUserConfig(redactedUserConfig);
-        msg = `<pre>\nUSER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
-        msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
-        msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n</pre>`;
+
+        msg += `<pre>\nUSER_CONFIG: ${_pretty(trimUserConfig(redact(context.USER_CONFIG)))}\n`;
+        msg += `CHAT_CONTEXT: ${_pretty(context.CURRENT_CHAT_CONTEXT)}\n`;
+        msg += `SHARE_CONTEXT: ${_pretty(shareCtx)}\n</pre>`;
     }
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg);
@@ -356,7 +352,7 @@ async function commandSystem(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandEcho(message, command, subcommand, context) {
-    var msg = `<pre>${JSON.stringify({message}, null, 2)}</pre>`;
+    var msg = `<pre>${_pretty({message})}</pre>`;
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg);
 }
@@ -460,3 +456,5 @@ export function commandsDocument() {
         };
     });
 }
+
+const _pretty=(o)=>JSON.stringify(o, null, 2);

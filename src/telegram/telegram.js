@@ -77,27 +77,6 @@ export function sendMessageToTelegramWithContext(context) {
 }
 
 /**
- * @param {ContextType} context
- * @return {function(string): Promise<Response>}
- */
-export function deleteMessageFromTelegramWithContext(context) {
-    return async (messageId) => {
-        return await fetch(
-            `${ENV.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({
-                    chat_id: context.CURRENT_CHAT_CONTEXT.chat_id,
-                    message_id: messageId,
-                }),
-            },
-        );
-    };
-}
-
-
-/**
  * 发送图片消息到Telegram
  *
  * @param {string | Blob} photo

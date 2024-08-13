@@ -146,10 +146,12 @@ class Environment {
     //
     // 隐藏部分命令按钮
     HIDE_COMMAND_BUTTONS = [];
+    /*
     // 显示快捷回复按钮
     SHOW_REPLY_BUTTON = false;
     // 而外引用消息开关
     EXTRA_MESSAGE_CONTEXT = false;
+    */
 
     // -- 模式开关 --
     //
