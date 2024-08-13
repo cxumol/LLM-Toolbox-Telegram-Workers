@@ -1,6 +1,6 @@
 import {
     sendChatActionToTelegramWithContext,
-    sendMessageToTelegramWithContext,
+    sendMessageToTelegramWithContext as msgTG,
 } from '../telegram/telegram.js';
 import {DATABASE, ENV} from '../config/env.js';
 import {loadChatLLM} from "./agents.js";
@@ -49,7 +49,7 @@ async function requestCompletionsFromLLM(params, context, llm, onStream) {
 export async function actWithLLM(params, context) {
     try {
         try {
-            const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
+            const msg = await msgTG(context)('...').then((r) => r.json());
             context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             context.CURRENT_CHAT_CONTEXT.reply_markup = null;
         } catch (e) {
@@ -64,10 +64,9 @@ export async function actWithLLM(params, context) {
             onStream = async (text) => {
                 try {
                     // 判断是否需要等待
-                    if (nextEnableTime && nextEnableTime > Date.now()) {
-                        return;
-                    }
-                    const resp = await sendMessageToTelegramWithContext(context)(text);
+                    if (nextEnableTime && nextEnableTime > Date.now()) return;
+
+                    const resp = await msgTG(context)(text);
                     // 判断429
                     if (resp.status === 429) {
                         // 获取重试时间
@@ -88,7 +87,7 @@ export async function actWithLLM(params, context) {
         }
 
         const llm = loadChatLLM(context)?.request;
-        if (!llm) return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
+        if (!llm) return msgTG(context)(`LLM is not enable`);
 
         const answer = await requestCompletionsFromLLM(params, context, llm, onStream);
         context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
@@ -96,15 +95,10 @@ export async function actWithLLM(params, context) {
         if (nextEnableTime && nextEnableTime > Date.now()) {
             await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
         }
-        return sendMessageToTelegramWithContext(context)(answer);
+        return msgTG(context)(answer);
     } catch (e) {
-        let errMsg = `Error: ${e.message}`;
-        if (errMsg.length > 2048) {
-            // 裁剪错误信息 最长2048
-            errMsg = errMsg.substring(0, 2048);
-        }
         context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-        return sendMessageToTelegramWithContext(context)(errMsg);
+        return msgTG(context)(`Error: ${e.message}`.substring(0, 2048));
     }
 }
 

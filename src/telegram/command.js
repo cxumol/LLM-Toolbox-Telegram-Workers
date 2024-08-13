@@ -11,7 +11,7 @@ import {
 import {
     getChatRoleWithContext,
     sendChatActionToTelegramWithContext,
-    sendMessageToTelegramWithContext,
+    sendMessageToTelegramWithContext as msgTG,
     sendPhotoToTelegramWithContext,
 } from './telegram.js';
 import {actWithLLM} from '../agent/llm.js';
@@ -130,10 +130,10 @@ function registerActCommands() {
  */
 async function commandGenerateImg(message, command, subcommand, context) {
     if (subcommand === '')
-        return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
+        return msgTG(context)(ENV.I18N.command.help.img);
 
     const gen = loadImageGen(context)?.request;
-    if (!gen) return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
+    if (!gen) return msgTG(context)(`ERROR: Image generator not found`);
 
     setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
     const img = await gen(subcommand, context);
@@ -158,7 +158,7 @@ async function commandGetHelp(message, command, subcommand, context) {
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
     ];
 
-    return sendMessageToTelegramWithContext(context)(helpSections.join('\n'));
+    return msgTG(context)(helpSections.join('\n'));
 }
 
 /**
@@ -173,7 +173,7 @@ async function commandGetHelp(message, command, subcommand, context) {
 async function commandActUndefined(message, command, subcommand, context) {
     context.CURRENT_CHAT_CONTEXT.reply_markup = '{"remove_keyboard":true,"selective":true}';
     const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
-    return sendMessageToTelegramWithContext(context)(msgText);
+    return msgTG(context)(msgText);
 }
 
 /**
@@ -188,7 +188,7 @@ async function commandActUndefined(message, command, subcommand, context) {
 async function commandActWithLLM(message, command, subcommand, context) {
     const _act = command.split('_').slice(1).join('_'); 
     const act = ENV.I18N.acts[_act];
-    if (!act) return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
+    if (!act) return msgTG(context)(`ERROR: action not found`);
 
     let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
     /* insert EXTRA_MESSAGE_CONTEXT if exists */
@@ -254,7 +254,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
 
     if (operation === 'delete') {
         if (!Object.keys(context.USER_CONFIG).includes(subcommand)) {
-            return sendMessageToTelegramWithContext(context)(`Key ${subcommand} not found`);
+            return msgTG(context)(`Key ${subcommand} not found`);
         }
         updates.push({ key: subcommand, value: null });
     } else if (['update', 'batchUpdate'].includes(operation)) {
@@ -262,7 +262,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
         for (const [k, v] of entries) {
             let key = ENV_KEY_MAPPER[k] || k;
             if (!Object.keys(context.USER_CONFIG).includes(key) || ENV.LOCK_USER_CONFIG_KEYS.includes(key))
-                return sendMessageToTelegramWithContext(context)(`Key "${key}" not found or locked`);
+                return msgTG(context)(`Key "${key}" not found or locked`);
             updates.push({ key, value: v });
         }
     }
@@ -280,7 +280,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
     );
 
     const action = operation === 'delete' ? 'Deleted' : 'Updated';
-    return sendMessageToTelegramWithContext(context)(`${action} user config successfully`);
+    return msgTG(context)(`${action} user config successfully`);
 }
 
 
@@ -298,7 +298,7 @@ async function commandClearUserConfig(message, command, subcommand, context) {
         context.SHARE_CONTEXT.configStoreKey,
         "{}",
     );
-    return sendMessageToTelegramWithContext(context)('Clear user config success');
+    return msgTG(context)('Clear user config success');
 }
 
 
@@ -338,7 +338,7 @@ async function commandSystem(message, command, subcommand, context) {
         msg += `SHARE_CONTEXT: ${_pretty(shareCtx)}\n</pre>`;
     }
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
-    return sendMessageToTelegramWithContext(context)(msg);
+    return msgTG(context)(msg);
 }
 
 
@@ -354,7 +354,7 @@ async function commandSystem(message, command, subcommand, context) {
 async function commandEcho(message, command, subcommand, context) {
     var msg = `<pre>${_pretty({message})}</pre>`;
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
-    return sendMessageToTelegramWithContext(context)(msg);
+    return msgTG(context)(msg);
 }
 
 /**
@@ -386,15 +386,15 @@ export async function handleCommandMessage(message, context) {
             const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
             if (roleList) {
                 const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
-                if (!chatRole) return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
-                if (!roleList.includes(chatRole)) return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
+                if (!chatRole) return msgTG(context)('ERROR: Get chat role failed');
+                if (!roleList.includes(chatRole)) return msgTG(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
             }
         }
         // 提取子命令并执行
         const subcommand = message.text.slice(command.length).trim();
         return await handler.fn(message, command, subcommand, context);
     } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+        return msgTG(context)(`ERROR: ${e.message}`);
     }
 }
 
