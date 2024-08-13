@@ -47,20 +47,15 @@ export const chatLlmAgents = [
  * @returns {null|string}
  */
 export function currentChatModel(agentName, context) {
+    const modelKey = chatLlmAgents.find(a => a.name === agentName)?.modelKey;
+    const modelVal = context.USER_CONFIG[modelKey];
     switch (agentName) {
         case "azure":
-            try {
-                const url = new URL(context.USER_CONFIG.AZURE_COMPLETIONS_API);
-                return url.pathname.split("/")[3];
-            } catch  {
-                return context.USER_CONFIG.AZURE_COMPLETIONS_API;
-            }
+            return _azApiToModelName(modelVal);
         case "openai":
-            return context.USER_CONFIG.OPENAI_CHAT_MODEL;
         case "workers":
-            return context.USER_CONFIG.WORKERS_CHAT_MODEL;
         case "gemini":
-            return context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
+            return modelVal;
         default:
             return null;
     }
@@ -132,21 +127,24 @@ export function loadImageGen(context) {
  * @returns {null|string}
  */
 export function currentImageModel(agentName, context) {
+    const modelKey = imageGenAgents.find(a => a.name === agentName)?.modelKey;
+    const modelVal = context.USER_CONFIG[modelKey];
     switch (agentName) {
         case "azure":
-            try {
-                const url = new URL(context.USER_CONFIG.AZURE_DALLE_API);
-                return url.pathname.split("/")[3];
-            } catch  {
-                return context.USER_CONFIG.AZURE_DALLE_API;
-            }
+            return _azApiToModelName(modelVal);
         case "openai":
-            return context.USER_CONFIG.DALL_E_MODEL;
         case "workers":
-            return context.USER_CONFIG.WORKERS_IMAGE_MODEL;
+            return modelVal;
         default:
             return null;
     }
 }
 
 
+function _azApiToModelName(AZURE_API){
+    try {
+        return new URL(AZURE_API).pathname.split("/")[3];
+    } catch {
+        return AZURE_API;
+    }
+};
