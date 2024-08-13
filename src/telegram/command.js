@@ -16,10 +16,8 @@ import {
 } from './telegram.js';
 import {actWithLLM} from '../agent/llm.js';
 import {
-    chatModelKey,
     currentChatModel,
     currentImageModel,
-    imageModelKey,
     loadChatLLM,
     loadImageGen
 } from "../agent/agents.js";
@@ -131,18 +129,15 @@ function registerActCommands() {
  * @return {Promise<Response>}
  */
 async function commandGenerateImg(message, command, subcommand, context) {
-    if (subcommand === '') {
+    if (subcommand === '')
         return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
-    }
 
     const gen = loadImageGen(context)?.request;
-    if (!gen) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
-    }
+    if (!gen) return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
+
     setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
-
 }
 
 /**
@@ -176,13 +171,9 @@ async function commandGetHelp(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandActUndefined(message, command, subcommand, context) {
-        context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
-            remove_keyboard: true,
-            selective: true,
-        });
-        const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
-        
-        return sendMessageToTelegramWithContext(context)(msgText);
+    context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({ remove_keyboard: true,selective: true});
+    const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
+    return sendMessageToTelegramWithContext(context)(msgText);
 }
 
 /**
@@ -197,15 +188,13 @@ async function commandActUndefined(message, command, subcommand, context) {
 async function commandActWithLLM(message, command, subcommand, context) {
     const _act = command.split('_').slice(1).join('_'); 
     const act = ENV.I18N.acts[_act];
-    if (!act) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
-    }
-    let text = message.reply_to_message ? message.reply_to_message.text : subcommand.trim();
+    if (!act) return sendMessageToTelegramWithContext(context)(`ERROR: action not found`);
+
+    let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
     /* insert EXTRA_MESSAGE_CONTEXT if exists */
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text)
         text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
-    }
-    console.log("Act with LLM: ", act, text);
+
     return actWithLLM({message: text, prompt: act.prompt}, context);
 }
 
@@ -323,18 +312,15 @@ async function commandClearUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandSystem(message, command, subcommand, context) {
-    let chatAgent = loadChatLLM(context)?.name;
-    let imageAgent = loadImageGen(context)?.name;
+    let chatAgent = loadChatLLM(context);
+    let imageAgent = loadImageGen(context);
     const agent = {
-        AI_PROVIDER: chatAgent,
-        AI_IMAGE_PROVIDER: imageAgent,
+        AI_PROVIDER: chatAgent?.name,
+        AI_IMAGE_PROVIDER: imageAgent?.name,
     };
-    if (chatModelKey(chatAgent)) {
-        agent[chatModelKey(chatAgent)] = currentChatModel(chatAgent, context);
-    }
-    if (imageModelKey(imageAgent)) {
-        agent[imageModelKey(imageAgent)] = currentImageModel(imageAgent, context);
-    }
+    agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context);
+    agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
+
     let msg = `AGENT: ${JSON.stringify(agent, null, 2)}\n`;
     if (ENV.DEV_MODE) {
         const shareCtx = {...context.SHARE_CONTEXT};
@@ -386,49 +372,34 @@ export async function handleCommandMessage(message, context) {
     initDynamicCommands();
 
     // 如果是开发模式，添加 /echo 命令用于调试
-    if (ENV.DEV_MODE) {
-        commandHandlers['/echo'] = {
-            help: '[DEBUG ONLY] echo message',
-            scopes: ['all_private_chats', 'all_chat_administrators'],
-            fn: commandEcho,
-            needAuth: commandAuthCheck.default,
-        };
-    }
+    if (ENV.DEV_MODE)
+        commandHandlers['/echo'] = { help: '[DEBUG ONLY] echo message', scopes: scopeMod, fn: commandEcho, needAuth: commandAuthCheck.default };
 
-    // 检查是否有自定义命令 其实是 alias
-    if (CUSTOM_COMMAND[message.text]) {
-        message.text = CUSTOM_COMMAND[message.text];
-    }
+    // 检查是否有自定义 alias
+    if (CUSTOM_COMMAND[message.text]) message.text = CUSTOM_COMMAND[message.text];
 
     // 查找匹配的命令
-    const command = Object.keys(commandHandlers).find(key => 
-        message.text === key || message.text.startsWith(key + ' ')
-    );
+    const command = Object.keys(commandHandlers).find(key => message.text === key || message.text.startsWith(key + ' '));
+    if (!command) return null;
 
-    if (command) {
-        const handler = commandHandlers[command];
-        try {
-            // 如果存在权限条件，进行权限验证
-            if (handler.needAuth) {
-                const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
-                if (roleList) {
-                    const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
-                    if (!chatRole) {
-                        return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
-                    }
-                    if (!roleList.includes(chatRole)) {
-                        return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
-                    }
-                }
+    // 提取子命令, 执行命令函数
+    const handler = commandHandlers[command];
+    try {
+        // 如果存在权限条件，进行权限验证
+        if (handler.needAuth) {
+            const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
+            if (roleList) {
+                const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
+                if (!chatRole) return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
+                if (!roleList.includes(chatRole)) return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
             }
-            // 提取子命令并执行
-            const subcommand = message.text.slice(command.length).trim();
-            return await handler.fn(message, command, subcommand, context);
-        } catch (e) {
-            return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
         }
+        // 提取子命令并执行
+        const subcommand = message.text.slice(command.length).trim();
+        return await handler.fn(message, command, subcommand, context);
+    } catch (e) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     }
-    return null;
 }
 
 /**
@@ -461,8 +432,7 @@ export async function bindCommandForTelegram(token) {
     // 发送命令到Telegram
     for (const scope in scopeCommandMap) {
         result[scope] = await fetch(
-            `https://api.telegram.org/bot${token}/setMyCommands`,
-            {
+            `https://api.telegram.org/bot${token}/setMyCommands`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
