@@ -3,6 +3,7 @@ import {Context} from '../config/context.js';
 import {getBot, sendMessageToTelegramWithContext} from './telegram.js';
 import {handleCommandMessage} from './command.js';
 import {errorToString} from '../utils/utils.js';
+import {retrieveUrlTxt} from "./retrieval.js";
 
 import '../types/telegram.js';
 
@@ -60,13 +61,11 @@ async function msgFilterWhiteList(message, context) {
     // 判断群组消息
     if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
         // 未打开群组机器人开关,直接忽略
-        if (!ENV.GROUP_CHAT_BOT_ENABLE) {
-            throw new Error('Not support');
-        }
+        if (!ENV.GROUP_CHAT_BOT_ENABLE) throw new Error('Not support');
         // 白名单判断
         if (!ENV.CHAT_GROUP_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
             return sendMessageToTelegramWithContext(context)(
-                `Your group are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`,
+                `403. Add the group to the whitelist to proceed. chat_id ${context.CURRENT_CHAT_CONTEXT.chat_id}`,
             );
         }
         return null;
@@ -86,9 +85,9 @@ async function msgFilterWhiteList(message, context) {
  */
 // eslint-disable-next-line no-unused-vars
 async function msgFilterUnsupportedMessage(message, context) {
-    if (!message.text) {
-        throw new Error('Not supported message type');
-    }
+    if (!(message?.entities[0]?.type === 'bot_command')) throw new Error('Only bot_command is supported');
+    if (message.caption) message.text = message.caption;
+    if (!message.text) throw new Error('Not supported message type');
     return null;
 }
 
@@ -102,9 +101,12 @@ async function msgFilterUnsupportedMessage(message, context) {
 async function msgHandleGroupMessage(message, context) {
     // 非群组消息不作处理
     if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) return null;
-    // 回复机器人的消息不作处理
-    // if (message.reply_to_message?.from.is_bot) return null;
-    // if (`${message.reply_to_message?.from.id}` === context.SHARE_CONTEXT.currentBotId) return null;
+    // https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots
+    if ( (message.reply_to_message?.from.is_bot) || (`${message.reply_to_message?.from.id}` === context.SHARE_CONTEXT.currentBotId)){
+        sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: \nhttps://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`);
+        throw new Error('Not supported message type: reply to a bot');
+    } 
+    
 
     // 处理群组消息，过滤掉AT部分
     let botName = context.SHARE_CONTEXT.currentBotName;
@@ -145,6 +147,36 @@ async function msgHandleGroupMessage(message, context) {
     return null;
 }
 
+/**
+ * 加载消息 (或被引消息) 内第一个 URL 指向的文档
+ * 
+ */
+async function msgHandleUrl(message, context) {
+    const url = _getFirstUrl(message);
+    if (!url) return null;
+    const doc = await retrieveUrlTxt(url);
+    /*debug*/ console.log(`url: ${url}, doc: ${doc}`);
+    if (!doc){
+        sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`);
+        throw new Error('Doc extraction failed');
+    }
+    context.SHARE_CONTEXT.extraMessageContext = (context.SHARE_CONTEXT.extraMessageContext ?? {});
+    context.SHARE_CONTEXT.extraMessageContext.doc = doc.substring(0, 4000); // conservative max context window limit
+    return null;
+}
+function _getFirstUrl(message) {
+    for (const msg of [message.reply_to_message, message]) {
+        if(!msg) continue;
+        for (const entities of [msg.entities, msg.caption_entities]) {
+            if(!entities) continue;
+            const urlEntity = entities.find(entity => entity.type === 'text_link' || entity.type === 'url');
+            if (!urlEntity) continue;
+            return urlEntity.type === 'text_link' ? urlEntity.url : (msg.text || msg.caption).substring(urlEntity.offset, urlEntity.offset + urlEntity.length);
+        }
+    }
+    return null;
+}
+
 
 /**
  * 响应命令消息
@@ -154,13 +186,8 @@ async function msgHandleGroupMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleCommand(message, context) {
-    if (!message.text) {
-        // 非文本消息不作处理
-        return null;
-    }
     return await handleCommandMessage(message, context);
 }
-
 
 
 /**
@@ -214,10 +241,10 @@ export async function handleMessage(request) {
         msgHandleGroupMessage,
         // 过滤非白名单用户
         msgFilterWhiteList,
+        // 加载消息 (或被引消息) 内第一个 URL 指向的文档
+        msgHandleUrl,
         // 处理命令消息
         msgHandleCommand,
-        // 与llm聊天
-        // msgChatWithLLM,
     ];
 
     for (const handler of handlers) {

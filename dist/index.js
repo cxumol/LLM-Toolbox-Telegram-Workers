@@ -12,6 +12,8 @@ var UserConfig = class {
   SYSTEM_INIT_MESSAGE = null;
   // 全局默认初始化消息角色
   SYSTEM_INIT_MESSAGE_ROLE = "system";
+  // 自定义动作
+  CUSTOM_ACTTIONS = {};
   // -- Open AI 配置 --
   //
   // OpenAI API Key
@@ -33,20 +35,13 @@ var UserConfig = class {
   // DALL-E图片风格
   DALL_E_IMAGE_STYLE = "vivid";
   // -- AZURE 配置 --
-  //
-  // Azure API Key
   AZURE_API_KEY = null;
-  // Azure Completions API
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
   AZURE_COMPLETIONS_API = null;
-  // Azure DallE API
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
   AZURE_DALLE_API = null;
   // -- Workers 配置 --
-  //
-  // Cloudflare Account ID
   CLOUDFLARE_ACCOUNT_ID = null;
-  // Cloudflare Token
   CLOUDFLARE_TOKEN = null;
   // Text Generation Model
   WORKERS_CHAT_MODEL = "@cf/mistral/mistral-7b-instruct-v0.1 ";
@@ -64,9 +59,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723452350;
+  BUILD_TIMESTAMP = 1723549464;
   // 当前版本 commit id
-  BUILD_VERSION = "8f38e45";
+  BUILD_VERSION = "90fcf0f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -124,10 +119,12 @@ var UserConfig = class {
   //
   // 隐藏部分命令按钮
   HIDE_COMMAND_BUTTONS = [];
+  /*
   // 显示快捷回复按钮
-  SHOW_REPLY_BUTTON = !1;
+  SHOW_REPLY_BUTTON = false;
   // 而外引用消息开关
-  EXTRA_MESSAGE_CONTEXT = !1;
+  EXTRA_MESSAGE_CONTEXT = false;
+  */
   // -- 模式开关 --
   //
   // 使用流模式
@@ -383,21 +380,8 @@ async function sendMessageToTelegram(message, token, context) {
 function sendMessageToTelegramWithContext(context) {
   return async (message) => sendMessageToTelegram(message, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
 }
-function deleteMessageFromTelegramWithContext(context) {
-  return async (messageId) => await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: context.CURRENT_CHAT_CONTEXT.chat_id,
-        message_id: messageId
-      })
-    }
-  );
-}
 async function sendPhotoToTelegram(photo, token, context) {
-  let url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`, isPhotoString = typeof photo == "string", filteredContext = Object.fromEntries(Object.entries(context).filter(([k, v]) => v != null)), body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(), headers = isPhotoString ? { "Content-Type": "application/json" } : {};
+  let url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`, isPhotoString = typeof photo == "string", filteredContext = Object.fromEntries(Object.entries(context).filter(([, v]) => v != null)), body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(), headers = isPhotoString ? { "Content-Type": "application/json" } : {};
   return isPhotoString || (body.append("photo", photo, "photo.png"), Object.entries(filteredContext).forEach(([key, value]) => body.append(key, `${value}`))), await fetch(url, {
     method: "POST",
     headers,
@@ -599,30 +583,15 @@ LineDecoder.NEWLINE_REGEXP = /\r\n|[\n\r]/g;
 
 // src/agent/request.js
 function fixOpenAICompatibleOptions(options) {
-  return options = options || {}, options.streamBuilder = options.streamBuilder || function(r, c) {
-    return new Stream(r, c);
-  }, options.contentExtractor = options.contentExtractor || function(d) {
-    return d?.choices?.[0]?.delta?.content;
-  }, options.fullContentExtractor = options.fullContentExtractor || function(d) {
-    return d.choices?.[0]?.message.content;
-  }, options.errorExtractor = options.errorExtractor || function(d) {
-    return d.error?.message;
-  }, options;
+  return options = options || {}, options.streamBuilder = options.streamBuilder || ((r, c) => new Stream(r, c)), options.contentExtractor = options.contentExtractor || ((d) => d?.choices?.[0]?.delta?.content), options.fullContentExtractor = options.fullContentExtractor || ((d) => d.choices?.[0]?.message.content), options.errorExtractor = options.errorExtractor || ((d) => d.error?.message), options;
 }
-function isJsonResponse(resp) {
-  return resp.headers.get("content-type").indexOf("json") !== -1;
-}
+var isJsonResponse = (resp) => resp.headers.get("content-type").includes("json");
 function isEventStreamResponse(resp) {
-  let types = ["application/stream+json", "text/event-stream"], content = resp.headers.get("content-type");
-  for (let type of types)
-    if (content.indexOf(type) !== -1)
-      return !0;
-  return !1;
+  let contentType = resp.headers.get("content-type");
+  return contentType?.includes("application/stream+json") || contentType?.includes("text/event-stream");
 }
 async function requestChatCompletions(url, header, body, context, onStream, onResult = null, options = null) {
-  let controller = new AbortController(), { signal } = controller, timeoutID = null, lastUpdateTime = Date.now();
-  ENV.CHAT_COMPLETE_API_TIMEOUT > 0 && (timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT));
-  let resp = await fetch(url, {
+  let controller = new AbortController(), { signal } = controller, timeoutID = ENV.CHAT_COMPLETE_API_TIMEOUT > 0 ? setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT) : null, lastUpdateTime = Date.now(), resp = await fetch(url, {
     method: "POST",
     headers: header,
     body: JSON.stringify(body),
@@ -829,117 +798,84 @@ var chatLlmAgents = [
   {
     name: "azure",
     enable: isAzureEnable,
-    request: requestCompletionsFromAzureOpenAI
+    request: requestCompletionsFromAzureOpenAI,
+    modelKey: "AZURE_COMPLETIONS_API"
   },
   {
     name: "openai",
     enable: isOpenAIEnable,
-    request: requestCompletionsFromOpenAI
+    request: requestCompletionsFromOpenAI,
+    modelKey: "OPENAI_CHAT_MODEL"
   },
   {
     name: "workers",
     enable: isWorkersAIEnable,
-    request: requestCompletionsFromWorkersAI
+    request: requestCompletionsFromWorkersAI,
+    modelKey: "WORKERS_CHAT_MODEL"
   },
   {
     name: "gemini",
     enable: isGeminiAIEnable,
-    request: requestCompletionsFromGeminiAI
+    request: requestCompletionsFromGeminiAI,
+    modelKey: "GOOGLE_COMPLETIONS_MODEL"
   }
 ];
 function currentChatModel(agentName, context) {
+  let modelKey = chatLlmAgents.find((a) => a.name === agentName)?.modelKey, modelVal = context.USER_CONFIG[modelKey];
   switch (agentName) {
     case "azure":
-      try {
-        return new URL(context.USER_CONFIG.AZURE_COMPLETIONS_API).pathname.split("/")[3];
-      } catch {
-        return context.USER_CONFIG.AZURE_COMPLETIONS_API;
-      }
+      return _azApiToModelName(modelVal);
     case "openai":
-      return context.USER_CONFIG.OPENAI_CHAT_MODEL;
     case "workers":
-      return context.USER_CONFIG.WORKERS_CHAT_MODEL;
     case "gemini":
-      return context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
-    default:
-      return null;
-  }
-}
-function chatModelKey(agentName) {
-  switch (agentName) {
-    case "azure":
-      return "AZURE_COMPLETIONS_API";
-    case "openai":
-      return "OPENAI_CHAT_MODEL";
-    case "workers":
-      return "WORKERS_CHAT_MODEL";
-    case "gemini":
-      return "GOOGLE_COMPLETIONS_MODEL";
+      return modelVal;
     default:
       return null;
   }
 }
 function loadChatLLM(context) {
-  for (let llm of chatLlmAgents)
-    if (llm.name === context.USER_CONFIG.AI_PROVIDER)
-      return llm;
-  for (let llm of chatLlmAgents)
-    if (llm.enable(context))
-      return llm;
-  return null;
+  return chatLlmAgents.find((llm) => llm.name === context.USER_CONFIG.AI_PROVIDER) || chatLlmAgents.find((llm) => llm.enable(context)) || null;
 }
 var imageGenAgents = [
   {
     name: "azure",
     enable: isAzureImageEnable,
-    request: requestImageFromAzureOpenAI
+    request: requestImageFromAzureOpenAI,
+    modelKey: "AZURE_DALLE_API"
   },
   {
     name: "openai",
     enable: isOpenAIEnable,
-    request: requestImageFromOpenAI
+    request: requestImageFromOpenAI,
+    modelKey: "DALL_E_MODEL"
   },
   {
     name: "workers",
     enable: isWorkersAIEnable,
-    request: requestImageFromWorkersAI
+    request: requestImageFromWorkersAI,
+    modelKey: "WORKERS_IMAGE_MODEL"
   }
 ];
 function loadImageGen(context) {
-  for (let imgGen of imageGenAgents)
-    if (imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER)
-      return imgGen;
-  for (let imgGen of imageGenAgents)
-    if (imgGen.enable(context))
-      return imgGen;
-  return null;
+  return imageGenAgents.find((imgGen) => imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER) || imageGenAgents.find((imgGen) => imgGen.enable(context)) || null;
 }
 function currentImageModel(agentName, context) {
+  let modelKey = imageGenAgents.find((a) => a.name === agentName)?.modelKey, modelVal = context.USER_CONFIG[modelKey];
   switch (agentName) {
     case "azure":
-      try {
-        return new URL(context.USER_CONFIG.AZURE_DALLE_API).pathname.split("/")[3];
-      } catch {
-        return context.USER_CONFIG.AZURE_DALLE_API;
-      }
+      return _azApiToModelName(modelVal);
     case "openai":
-      return context.USER_CONFIG.DALL_E_MODEL;
     case "workers":
-      return context.USER_CONFIG.WORKERS_IMAGE_MODEL;
+      return modelVal;
     default:
       return null;
   }
 }
-function imageModelKey(agentName) {
-  switch (agentName) {
-    case "azure":
-      return "AZURE_DALLE_API";
-    case "openai":
-      return "DALL_E_MODEL";
-    case "workers":
-      return "WORKERS_IMAGE_MODEL";
-    default:
-      return null;
+function _azApiToModelName(AZURE_API) {
+  try {
+    return new URL(AZURE_API).pathname.split("/")[3];
+  } catch {
+    return AZURE_API;
   }
 }
 
@@ -979,24 +915,12 @@ async function actWithLLM(params, context) {
       }
     });
     let llm = loadChatLLM(context)?.request;
-    if (llm === null)
+    if (!llm)
       return sendMessageToTelegramWithContext(context)("LLM is not enable");
     let answer = await requestCompletionsFromLLM(params, context, llm, onStream);
-    if (context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode, ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id)
-      try {
-        await deleteMessageFromTelegramWithContext(context)(context.CURRENT_CHAT_CONTEXT.message_id), context.CURRENT_CHAT_CONTEXT.message_id = null, context.CURRENT_CHAT_CONTEXT.reply_markup = {
-          keyboard: [[{ text: "/new" }, { text: "/redo" }]],
-          selective: !0,
-          resize_keyboard: !0,
-          one_time_keyboard: !0
-        };
-      } catch (e) {
-        console.error(e);
-      }
-    return nextEnableTime && nextEnableTime > Date.now() && await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now())), sendMessageToTelegramWithContext(context)(answer);
+    return context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode, nextEnableTime && nextEnableTime > Date.now() && await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now())), sendMessageToTelegramWithContext(context)(answer);
   } catch (e) {
-    let errMsg = `Error: ${e.message}`;
-    return errMsg.length > 2048 && (errMsg = errMsg.substring(0, 2048)), context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = !0, sendMessageToTelegramWithContext(context)(errMsg);
+    return context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = !0, sendMessageToTelegramWithContext(context)(`Error: ${e.message}`.substring(0, 2e3));
   }
 }
 
@@ -1008,16 +932,9 @@ var commandAuthCheck = {
   shareModeGroup: function(chatType) {
     return CONST.GROUP_TYPES.includes(chatType) && ENV.GROUP_CHAT_BOT_SHARE_MODE ? ["administrator", "creator"] : !1;
   }
-}, commandSortList = [
-  "/act",
-  "/img",
-  "/setenv",
-  "/delenv",
-  "/system",
-  "/help"
-], commandHandlers = {
+}, scopeMod = ["all_private_chats", "all_chat_administrators"], scopeFull = scopeMod.concat(["all_group_chats"]), commandHandlers = {
   "/help": {
-    scopes: ["all_private_chats", "all_chat_administrators"],
+    scopes: scopeMod,
     fn: commandGetHelp
   },
   "/start": {
@@ -1025,48 +942,48 @@ var commandAuthCheck = {
     fn: commandGetHelp
   },
   "/act": {
-    scopes: ["all_private_chats", "all_group_chats"],
+    scopes: scopeFull,
     fn: commandActUndefined,
     needAuth: commandAuthCheck.shareModeGroup
   },
   "/img": {
-    scopes: ["all_private_chats", "all_chat_administrators"],
+    scopes: scopeMod,
     fn: commandGenerateImg,
     needAuth: commandAuthCheck.shareModeGroup
   },
-  "/setenv": {
-    scopes: [],
+  "/mod_env_set": {
+    scopes: scopeMod,
     fn: commandUpdateUserConfig,
     needAuth: commandAuthCheck.shareModeGroup
   },
-  "/setenvs": {
-    scopes: [],
+  "/mod_env_set_batch": {
+    scopes: scopeMod,
     fn: commandUpdateUserConfigs,
     needAuth: commandAuthCheck.shareModeGroup
   },
-  "/delenv": {
-    scopes: [],
+  "/mod_env_del": {
+    scopes: scopeMod,
     fn: commandDeleteUserConfig,
     needAuth: commandAuthCheck.shareModeGroup
   },
-  "/clearenv": {
-    scopes: [],
+  "/mod_env_del_all": {
+    scopes: scopeMod,
     fn: commandClearUserConfig,
     needAuth: commandAuthCheck.shareModeGroup
   },
-  "/system": {
-    scopes: ["all_private_chats", "all_chat_administrators"],
+  "/mod_system": {
+    scopes: scopeMod,
     fn: commandSystem,
     needAuth: commandAuthCheck.default
   }
-};
+}, commandSortList = Object.keys(commandHandlers).filter((key) => !["/start", "/img"].includes(key));
 function initDynamicCommands() {
   registerActCommands();
 }
 function registerActCommands() {
   Object.keys(ENV.I18N.acts).forEach((act) => {
     commandHandlers[`/act_${act}`] = {
-      scopes: ["all_private_chats", "all_group_chats"],
+      scopes: scopeFull,
       fn: commandActWithLLM,
       needAuth: commandAuthCheck.shareModeGroup
     }, commandSortList.splice(1, 0, `/act_${act}`);
@@ -1075,163 +992,127 @@ function registerActCommands() {
 async function commandGenerateImg(message, command, subcommand, context) {
   if (subcommand === "")
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
-  try {
-    let gen = loadImageGen(context)?.request;
-    if (!gen)
-      return sendMessageToTelegramWithContext(context)("ERROR: Image generator not found");
-    setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
-    let img = await gen(subcommand, context);
-    return sendPhotoToTelegramWithContext(context)(img);
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  let gen = loadImageGen(context)?.request;
+  if (!gen)
+    return sendMessageToTelegramWithContext(context)("ERROR: Image generator not found");
+  setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
+  let img = await gen(subcommand, context);
+  return sendPhotoToTelegramWithContext(context)(img);
 }
 async function commandGetHelp(message, command, subcommand, context) {
   let helpSections = [
     ENV.I18N.command.help.summary,
-    ...Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`),
+    ...Object.keys(commandHandlers).map((key) => `${key.replaceAll("_", "\\_")}\uFF1A${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice(5)]?.name}`),
     ...Object.keys(CUSTOM_COMMAND).filter((key) => CUSTOM_COMMAND_DESCRIPTION[key]).map((key) => `${key}\uFF1A${CUSTOM_COMMAND_DESCRIPTION[key]}`)
   ];
-  return context.CURRENT_CHAT_CONTEXT.parse_mode = null, sendMessageToTelegramWithContext(context)(helpSections.join(`
+  return sendMessageToTelegramWithContext(context)(helpSections.join(`
 `));
 }
 async function commandActUndefined(message, command, subcommand, context) {
-  try {
-    return context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
-      remove_keyboard: !0,
-      selective: !0
-    }), command === "/act" ? sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.act) : sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.act}(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  context.CURRENT_CHAT_CONTEXT.reply_markup = '{"remove_keyboard":true,"selective":true}';
+  let msgText = Object.keys(ENV.I18N.acts).map((key) => `/act\\_${key}\uFF1A${ENV.I18N.acts[key].name}`).join(`
+`);
+  return sendMessageToTelegramWithContext(context)(msgText);
 }
 async function commandActWithLLM(message, command, subcommand, context) {
   let _act = command.split("_").slice(1).join("_"), act = ENV.I18N.acts[_act];
   if (!act)
     return sendMessageToTelegramWithContext(context)("ERROR: action not found");
-  let text = message.reply_to_message ? message.reply_to_message.text : subcommand.trim();
-  return ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text && (text = context.SHARE_CONTEXT.extraMessageContext.text + `
-` + text), console.log("Act with LLM: ", act, text), actWithLLM({ message: text, prompt: act.prompt }, context);
+  let text = message.reply_to_message ? message.reply_to_message.text + `
+` + subcommand.trim() : subcommand.trim(), extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
+  return extraCtx && console.log(extraCtx), extraCtx?.doc && (text = `<Document>
+${extraCtx.doc}
+</Document>
+
+` + text), extraCtx?.textInput && (text = extraCtx.textInput + `
+` + text), actWithLLM({ message: text, prompt: act.prompt }, context);
 }
 async function commandUpdateUserConfig(message, command, subcommand, context) {
-  let [key, value] = subcommand.split("=");
-  if (!value)
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
-  if (key = ENV_KEY_MAPPER[key] || key, ENV.LOCK_USER_CONFIG_KEYS.includes(key))
-    return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-  if (!Object.keys(context.USER_CONFIG).includes(key))
-    return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-  try {
-    return context.USER_CONFIG.DEFINE_KEYS = [.../* @__PURE__ */ new Set([...context.USER_CONFIG.DEFINE_KEYS, key])], mergeEnvironment(context.USER_CONFIG, { [key]: value }), console.log("Update user config: ", key, context.USER_CONFIG[key]), await DATABASE.put(
-      context.SHARE_CONTEXT.configStoreKey,
-      JSON.stringify(trimUserConfig(context.USER_CONFIG))
-    ), sendMessageToTelegramWithContext(context)("Update user config success");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  return _handleUserConfig(message, command, subcommand, context, "update");
 }
 async function commandUpdateUserConfigs(message, command, subcommand, context) {
-  try {
-    let values = JSON.parse(subcommand), configKeys = new Set(Object.keys(context.USER_CONFIG));
-    for (let ent of Object.entries(values)) {
-      let [key, value] = ent;
-      if (key = ENV_KEY_MAPPER[key] || key, ENV.LOCK_USER_CONFIG_KEYS.includes(key))
-        return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-      if (!configKeys.has(key))
-        return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-      context.USER_CONFIG.DEFINE_KEYS.push(key), mergeEnvironment(context.USER_CONFIG, { [key]: value }), console.log("Update user config: ", key, context.USER_CONFIG[key]);
-    }
-    return context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS)), await DATABASE.put(
-      context.SHARE_CONTEXT.configStoreKey,
-      JSON.stringify(trimUserConfig(context.USER_CONFIG))
-    ), sendMessageToTelegramWithContext(context)("Update user config success");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  return _handleUserConfig(message, command, subcommand, context, "batchUpdate");
 }
 async function commandDeleteUserConfig(message, command, subcommand, context) {
-  if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
-    let msg = `Key ${subcommand} is locked`;
-    return sendMessageToTelegramWithContext(context)(msg);
+  _handleUserConfig(message, command, subcommand, context, "delete");
+}
+async function _handleUserConfig(message, command, subcommand, context, operation) {
+  let updates = [];
+  if (operation === "delete") {
+    if (!Object.keys(context.USER_CONFIG).includes(subcommand))
+      return sendMessageToTelegramWithContext(context)(`Key ${subcommand} not found`);
+    updates.push({ key: subcommand, value: null });
+  } else if (["update", "batchUpdate"].includes(operation)) {
+    let entries = operation === "update" ? [subcommand.split("=")] : Object.entries(JSON.parse(subcommand));
+    for (let [k, v] of entries) {
+      let key = ENV_KEY_MAPPER[k] || k;
+      if (!Object.keys(context.USER_CONFIG).includes(key) || ENV.LOCK_USER_CONFIG_KEYS.includes(key))
+        return sendMessageToTelegramWithContext(context)(`Key "${key}" not found or locked`);
+      updates.push({ key, value: v });
+    }
   }
-  try {
-    return context.USER_CONFIG[subcommand] = null, context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand), await DATABASE.put(
-      context.SHARE_CONTEXT.configStoreKey,
-      JSON.stringify(trimUserConfig(context.USER_CONFIG))
-    ), sendMessageToTelegramWithContext(context)("Delete user config success");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  mergeEnvironment(context.USER_CONFIG, Object.fromEntries(updates.map(({ key, value }) => [key, value]))), context.USER_CONFIG.DEFINE_KEYS = updates.map((u) => u.key).filter((k) => context.USER_CONFIG[k] !== null), await DATABASE.put(
+    context.SHARE_CONTEXT.configStoreKey,
+    JSON.stringify(trimUserConfig(context.USER_CONFIG))
+  );
+  let action = operation === "delete" ? "Deleted" : "Updated";
+  return sendMessageToTelegramWithContext(context)(`${action} user config successfully`);
 }
 async function commandClearUserConfig(message, command, subcommand, context) {
-  try {
-    return await DATABASE.put(
-      context.SHARE_CONTEXT.configStoreKey,
-      JSON.stringify({})
-    ), sendMessageToTelegramWithContext(context)("Clear user config success");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+  return await DATABASE.put(
+    context.SHARE_CONTEXT.configStoreKey,
+    "{}"
+  ), sendMessageToTelegramWithContext(context)("Clear user config success");
 }
 async function commandSystem(message, command, subcommand, context) {
-  let chatAgent = loadChatLLM(context)?.name, imageAgent = loadImageGen(context)?.name, agent = {
-    AI_PROVIDER: chatAgent,
-    AI_IMAGE_PROVIDER: imageAgent
+  let chatAgent = loadChatLLM(context), imageAgent = loadImageGen(context), agent = {
+    AI_PROVIDER: chatAgent?.name,
+    AI_IMAGE_PROVIDER: imageAgent?.name
   };
-  chatModelKey(chatAgent) && (agent[chatModelKey(chatAgent)] = currentChatModel(chatAgent, context)), imageModelKey(imageAgent) && (agent[imageModelKey(imageAgent)] = currentImageModel(imageAgent, context));
-  let msg = `AGENT: ${JSON.stringify(agent, null, 2)}
+  agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context), agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
+  let msg = `AGENT: ${_pretty(agent)}
 `;
   if (ENV.DEV_MODE) {
-    let shareCtx = { ...context.SHARE_CONTEXT }, redactKeys = (config2) => {
-      let redactedConfig = { ...config2 };
-      for (let key in redactedConfig)
-        /api|token|account|key/i.test(key) && (redactedConfig[key] = "******");
-      return redactedConfig;
-    };
-    shareCtx.currentBotToken = "******";
-    let redactedUserConfig = redactKeys(context.USER_CONFIG), config = trimUserConfig(redactedUserConfig);
-    msg = `<pre>
-USER_CONFIG: ${JSON.stringify(config, null, 2)}
-`, msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}
-`, msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}
+    let redact = function(config) {
+      let redacted = { ...config };
+      for (let key in redacted)
+        /api|token|account|key/i.test(key) && (config[key] = "******");
+      return redacted;
+    }, shareCtx = { ...context.SHARE_CONTEXT };
+    shareCtx.currentBotToken = "******", msg += `<pre>
+USER_CONFIG: ${_pretty(trimUserConfig(redact(context.USER_CONFIG)))}
+`, msg += `CHAT_CONTEXT: ${_pretty(context.CURRENT_CHAT_CONTEXT)}
+`, msg += `SHARE_CONTEXT: ${_pretty(shareCtx)}
 </pre>`;
   }
   return context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML", sendMessageToTelegramWithContext(context)(msg);
 }
 async function commandEcho(message, command, subcommand, context) {
-  var msg = `<pre>${JSON.stringify({ message }, null, 2)}</pre>`;
+  var msg = `<pre>${_pretty({ message })}</pre>`;
   return context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML", sendMessageToTelegramWithContext(context)(msg);
 }
 async function handleCommandMessage(message, context) {
-  initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = {
-    help: "[DEBUG ONLY] echo message",
-    scopes: ["all_private_chats", "all_chat_administrators"],
-    fn: commandEcho,
-    needAuth: commandAuthCheck.default
-  }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
-  let command = Object.keys(commandHandlers).find(
-    (key) => message.text === key || message.text.startsWith(key + " ")
-  );
-  if (command) {
-    let handler = commandHandlers[command];
-    try {
-      if (handler.needAuth) {
-        let roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
-        if (roleList) {
-          let chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
-          if (!chatRole)
-            return sendMessageToTelegramWithContext(context)("ERROR: Get chat role failed");
-          if (!roleList.includes(chatRole))
-            return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(" or ")}`);
-        }
+  initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: commandAuthCheck.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
+  let command = Object.keys(commandHandlers).find((key) => message.text === key || message.text.startsWith(key + " "));
+  if (!command)
+    return null;
+  let handler = commandHandlers[command];
+  try {
+    if (handler.needAuth) {
+      let roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
+      if (roleList) {
+        let chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
+        if (!chatRole)
+          return sendMessageToTelegramWithContext(context)("ERROR: Get chat role failed");
+        if (!roleList.includes(chatRole))
+          return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(" or ")}`);
       }
-      let subcommand = message.text.slice(command.length).trim();
-      return await handler.fn(message, command, subcommand, context);
-    } catch (e) {
-      return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     }
+    let subcommand = message.text.slice(command.length).trim();
+    return await handler.fn(message, command, subcommand, context);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
-  return null;
 }
 async function bindCommandForTelegram(token) {
   let scopeCommandMap = {
@@ -1252,16 +1133,17 @@ async function bindCommandForTelegram(token) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          commands: scopeCommandMap[scope].map((command) => ({
-            command,
-            description: ENV.I18N.command.help[command.substring(1)] || ""
+          commands: scopeCommandMap[scope].map((key) => ({
+            command: key,
+            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice(5)]?.name || "No description"
           })),
           scope: { type: scope }
         })
       }
     ).then((res) => res.json());
-  return { ok: !0, result, scopeCommandMap: JSON.stringify(scopeCommandMap) };
+  return { ok: !0, result, scopeCommandMap };
 }
+var _pretty = (o) => JSON.stringify(o, null, 2);
 
 // src/utils/utils.js
 function renderHTML(body) {
@@ -1283,6 +1165,56 @@ async function makeResponse200(resp) {
   });
 }
 
+// src/telegram/retrieval.js
+var proxy = {
+  jina: "https://r.jina.ai/",
+  // "md": ["https://urltomarkdown.herokuapp.com/?title=true&url=",], // <doc="https://github.com/macsplit/urltomarkdown" fofa='body="Please specify a valid url query parameter"'/>
+  // "ft":  "https://12ft.io/?proxy?q=", 
+  twitter: "https://fixupx.com",
+  // <doc="github.com/FixTweet/FxTwitter"/>
+  medium: "https://r.jina.ai/https://www.smry.ai/proxy?url="
+}, sites = {
+  twitterEvil: ["twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com", "vxtwitter.com", "fixvx.com"],
+  // vx 比 fx 多了赞转
+  linkPreview: ["fxtwitter.com", "fixupx.com", "twittpr.com", "fixvx.com"],
+  medium: [
+    "medium.com",
+    "towardsdatascience.com",
+    "betterprogramming.pub",
+    "uxdesign.cc",
+    "thebolditalic.com",
+    "betterhumans.pub",
+    "levelup.gitconnected.com",
+    "writingcooperative.com",
+    "blog.prototypr.io",
+    "ehandbook.com",
+    "hackernoon.com"
+  ]
+};
+async function retrieveUrlTxt(link) {
+  let url = new URL(link);
+  if (console.log(url.hostname), sites.twitterEvil.includes(url.hostname))
+    return await twitterGrab(url);
+  if (sites.linkPreview.some((host) => url.hostname.endsWith(host))) {
+    let html = await fetch(link).then((r) => r.text());
+    return _linkpreviewParser(html);
+  } else if (sites.medium.some((host) => url.hostname.endsWith(host)))
+    return await mediumGrab(url);
+  return await fetch(proxy.jina + link).then((r) => r.text());
+}
+async function mediumGrab(url) {
+  let newlink = proxy.medium + encodeURIComponent(url.origin + url.pathname), txt = await fetch(newlink).then((r) => r.text());
+  return txt = txt.slice(txt.indexOf("smry \xB7 ")), txt.slice(txt.indexOf(`
+`) + 1).trim();
+}
+async function twitterGrab(url) {
+  let newlink = proxy.twitter + url.pathname, html = await fetch(newlink, { headers: { "User-Agent": "facebookexternalhit/1.1" } }).then((r) => r.text());
+  return _linkpreviewParser(html);
+}
+var _linkpreviewParser = (html) => Array.from(
+  html.matchAll(/<meta\s+(?:name|property)="(?:og:description|description)"\s+content="([^"]+)"[^>]*>/gi)
+).map((match) => match[1]).reduce((long, cur) => cur.length > long.length ? cur : long, "");
+
 // src/telegram/message.js
 async function msgInitChatContext(message, context) {
   return await context.initContext(message), null;
@@ -1301,7 +1233,7 @@ async function msgFilterWhiteList(message, context) {
     if (!ENV.GROUP_CHAT_BOT_ENABLE)
       throw new Error("Not support");
     return ENV.CHAT_GROUP_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`) ? null : sendMessageToTelegramWithContext(context)(
-      `Your group are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`
+      `403. Add the group to the whitelist to proceed. chat_id ${context.CURRENT_CHAT_CONTEXT.chat_id}`
     );
   }
   return sendMessageToTelegramWithContext(context)(
@@ -1309,13 +1241,17 @@ async function msgFilterWhiteList(message, context) {
   );
 }
 async function msgFilterUnsupportedMessage(message, context) {
-  if (!message.text)
+  if (message?.entities[0]?.type !== "bot_command")
+    throw new Error("Only bot_command is supported");
+  if (message.caption && (message.text = message.caption), !message.text)
     throw new Error("Not supported message type");
   return null;
 }
 async function msgHandleGroupMessage(message, context) {
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType))
     return null;
+  if (message.reply_to_message?.from.is_bot)
+    throw sendMessageToTelegramWithContext(context)("You can only reply to messages from people, not bots."), new Error("Not supported message type: reply to bot");
   let botName = context.SHARE_CONTEXT.currentBotName;
   if (!botName) {
     let res = await getBot(context.SHARE_CONTEXT.currentBotToken);
@@ -1342,8 +1278,29 @@ async function msgHandleGroupMessage(message, context) {
     throw new Error("No mentioned");
   return null;
 }
+async function msgHandleUrl(message, context) {
+  let url = _getFirstUrl(message);
+  if (!url)
+    return null;
+  let doc = await retrieveUrlTxt(url);
+  if (console.log(`url: ${url}, doc: ${doc}`), !doc)
+    throw sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`), new Error("Doc extraction failed");
+  context.SHARE_CONTEXT.extraMessageContext = context.SHARE_CONTEXT.extraMessageContext ?? {}, context.SHARE_CONTEXT.extraMessageContext.doc = doc;
+}
+function _getFirstUrl(message) {
+  for (let msg of [message.reply_to_message, message])
+    if (msg)
+      for (let entities of [msg.entities, msg.caption_entities]) {
+        if (!entities)
+          continue;
+        let urlEntity = entities.find((entity) => entity.type === "text_link" || entity.type === "url");
+        if (urlEntity)
+          return urlEntity.type === "text_link" ? urlEntity.url : (msg.text || msg.caption).substring(urlEntity.offset, urlEntity.offset + urlEntity.length);
+      }
+  return null;
+}
 async function msgHandleCommand(message, context) {
-  return message.text ? await handleCommandMessage(message, context) : null;
+  return await handleCommandMessage(message, context);
 }
 async function loadMessage(request, context) {
   let raw = await request.json();
@@ -1367,10 +1324,10 @@ async function handleMessage(request) {
     msgHandleGroupMessage,
     // 过滤非白名单用户
     msgFilterWhiteList,
+    // 加载消息 (或被引消息) 内第一个 URL 指向的文档
+    msgHandleUrl,
     // 处理命令消息
     msgHandleCommand
-    // 与llm聊天
-    // msgChatWithLLM,
   ];
   for (let handler of handlers)
     try {
@@ -1507,14 +1464,13 @@ var en_default = {
 `,
       help: "Get command help",
       start: "Get your ID and start a new conversation",
-      img: "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`",
-      setenv: "Set user configuration, the complete command format is /setenv KEY=VALUE",
-      setenvs: 'Batch set user configurations, the complete command format is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}',
-      delenv: "Delete user configuration, the complete command format is /delenv KEY",
-      clearenv: "Clear all user configuration",
-      system: "View some system information",
-      redo: "Redo the last conversation, /redo with modified content or directly /redo",
-      echo: "Echo the message"
+      act: "Select the action you want to act",
+      img: "Generate an image, `/img beach at moonlight`",
+      mod_env_set: "Set user configuration, `/mod_env_set KEY=VALUE`",
+      mod_env_set_batch: 'Batch set user configurations, `/mod_env_set_batch {"KEY1": "VALUE1", "KEY2": "VALUE2"}`',
+      mod_env_del: "Delete user configuration, `/mod_env_del MY_KEY1`",
+      mod_env_del_all: "Clear all user configuration",
+      mod_system: "View some system information"
     },
     new: {
       new_chat_start: "A new conversation has started"

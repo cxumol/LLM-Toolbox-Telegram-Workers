@@ -22,7 +22,6 @@ import {
     loadImageGen
 } from "../agent/agents.js";
 import {trimUserConfig} from "../config/context.js";
-import {retrieveUrlTxt} from "./retrieval.js";
 
 const commandAuthCheck = { 
     default: function (chatType) {
@@ -191,14 +190,18 @@ async function commandActWithLLM(message, command, subcommand, context) {
     if (!act) return msgTG(context)(`ERROR: action not found`);
 
     let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
-    /* insert EXTRA_MESSAGE_CONTEXT if exists */
-    if (context.SHARE_CONTEXT?.extraMessageContext?.text)
-        text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
 
+    const extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
+    /*debug*/ if(extraCtx)console.log(extraCtx);
+    if (extraCtx?.doc) {
+        text = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + text;
+    }
+    if (extraCtx?.textInput) {
+        text = extraCtx.textInput + '\n' + text;
+    }
+    
     return actWithLLM({message: text, prompt: act.prompt}, context);
 }
-
-
 
 /**
  * /mod_env_set 用户配置修改

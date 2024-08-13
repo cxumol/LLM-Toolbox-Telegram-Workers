@@ -7,14 +7,21 @@ const proxy={
 };
 
 const sites = {
-    "twitterEvil" : ["twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com", "vxtwitter.com", "fixvx.com"],
+    "twitterEvil" : ["twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com", "vxtwitter.com", "fixvx.com"], // vx 比 fx 多了赞转
     "linkPreview" : ["fxtwitter.com", "fixupx.com", "twittpr.com", "fixvx.com"],
     "medium" : ["medium.com", "towardsdatascience.com","betterprogramming.pub","uxdesign.cc","thebolditalic.com","betterhumans.pub",
         "levelup.gitconnected.com","writingcooperative.com","blog.prototypr.io","ehandbook.com","hackernoon.com"],
 };
 
+
+/**
+ * 
+ * @param {string} link
+ * @returns {Promise<string>}
+ */
 export async function retrieveUrlTxt(link){
     const url = new URL(link);
+    /*debug*/console.log(url.hostname);
     if(sites["twitterEvil"].includes(url.hostname)){
         return await twitterGrab(url);
     }else if(sites["linkPreview"].some(host=>url.hostname.endsWith(host))){
@@ -46,7 +53,7 @@ async function mediumGrab(url){
  */
 async function twitterGrab(url){
     const newlink = proxy["twitter"] + url.pathname;
-    const html = await fetch(newlink).then(r=>r.text());
+    const html = await fetch(newlink,{ headers:{'User-Agent':'facebookexternalhit/1.1'} }).then(r => r.text());
     return _linkpreviewParser(html);
 }
 
