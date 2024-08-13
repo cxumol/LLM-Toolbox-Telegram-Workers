@@ -22,7 +22,7 @@ import {
     loadImageGen
 } from "../agent/agents.js";
 import {trimUserConfig} from "../config/context.js";
-
+import {retrieveUrlTxt} from "./retrieval.js";
 
 const commandAuthCheck = { 
     default: function (chatType) {
@@ -162,7 +162,7 @@ async function commandGetHelp(message, command, subcommand, context) {
 }
 
 /**
- * /act 新的动作
+ * /act 获取动作列表
  *
  * @param {TelegramMessage} message
  * @param {string} command
