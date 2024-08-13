@@ -67,18 +67,13 @@ export function currentChatModel(agentName, context) {
  * @returns {null|string}
  */
 export function chatModelKey(agentName) {
-    switch (agentName) {
-        case "azure":
-            return "AZURE_COMPLETIONS_API";
-        case "openai":
-            return "OPENAI_CHAT_MODEL";
-        case "workers":
-            return "WORKERS_CHAT_MODEL";
-        case "gemini":
-            return "GOOGLE_COMPLETIONS_MODEL";
-        default:
-            return null;
-    }
+    const modelKeys = {
+        "azure": "AZURE_COMPLETIONS_API",
+        "openai": "OPENAI_CHAT_MODEL",
+        "workers": "WORKERS_CHAT_MODEL",
+        "gemini": "GOOGLE_COMPLETIONS_MODEL"
+    };
+    return modelKeys[agentName] || null;
 }
 
 
@@ -89,18 +84,7 @@ export function chatModelKey(agentName) {
  * @return {ChatAgent | null}
  */
 export function loadChatLLM(context) {
-    for (const llm of chatLlmAgents) {
-        if (llm.name === context.USER_CONFIG.AI_PROVIDER) {
-            return llm;
-        }
-    }
-    // 找不到指定的AI，使用第一个可用的AI
-    for (const llm of chatLlmAgents) {
-        if (llm.enable(context)) {
-            return llm;
-        }
-    }
-    return null;
+    return chatLlmAgents.find(llm => llm.name === context.USER_CONFIG.AI_PROVIDER) || chatLlmAgents.find(llm => llm.enable(context)) || null;
 }
 
 
@@ -145,18 +129,8 @@ export const imageGenAgents = [
  * @return {ImageAgent | null}
  */
 export function loadImageGen(context) {
-    for (const imgGen of imageGenAgents) {
-        if (imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER) {
-            return imgGen;
-        }
-    }
-    // 找不到指定的AI，使用第一个可用的AI
-    for (const imgGen of imageGenAgents) {
-        if (imgGen.enable(context)) {
-            return imgGen;
-        }
-    }
-    return null;
+    // 如果没有指定 AI_IMAGE_PROVIDER，则找到第一个可用的AI
+    return imageGenAgents.find(imgGen => imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER) || imageGenAgents.find(imgGen => imgGen.enable(context)) || null;
 }
 
 /**
