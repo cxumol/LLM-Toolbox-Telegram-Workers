@@ -18,22 +18,26 @@ export const chatLlmAgents = [
     {
         name: "azure",
         enable: isAzureEnable,
-        request: requestCompletionsFromAzureOpenAI
+        request: requestCompletionsFromAzureOpenAI,
+        modelKey: "AZURE_COMPLETIONS_API"
     },
     {
         name: "openai",
         enable: isOpenAIEnable,
-        request: requestCompletionsFromOpenAI
+        request: requestCompletionsFromOpenAI,
+        modelKey: "OPENAI_CHAT_MODEL"
     },
     {
         name: "workers",
         enable: isWorkersAIEnable,
-        request: requestCompletionsFromWorkersAI
+        request: requestCompletionsFromWorkersAI,
+        modelKey: "WORKERS_CHAT_MODEL"
     },
     {
         name: "gemini",
         enable: isGeminiAIEnable,
-        request: requestCompletionsFromGeminiAI
+        request: requestCompletionsFromGeminiAI,
+        modelKey: "GOOGLE_COMPLETIONS_MODEL"
     },
 ];
 
@@ -60,20 +64,6 @@ export function currentChatModel(agentName, context) {
         default:
             return null;
     }
-}
-
-/**
- * @param {string} agentName
- * @returns {null|string}
- */
-export function chatModelKey(agentName) {
-    const modelKeys = {
-        "azure": "AZURE_COMPLETIONS_API",
-        "openai": "OPENAI_CHAT_MODEL",
-        "workers": "WORKERS_CHAT_MODEL",
-        "gemini": "GOOGLE_COMPLETIONS_MODEL"
-    };
-    return modelKeys[agentName] || null;
 }
 
 
@@ -107,17 +97,20 @@ export const imageGenAgents = [
     {
         name: "azure",
         enable: isAzureImageEnable,
-        request: requestImageFromAzureOpenAI
+        request: requestImageFromAzureOpenAI,
+        modelKey: "AZURE_DALLE_API"
     },
     {
         name: "openai",
         enable: isOpenAIEnable,
-        request: requestImageFromOpenAI
+        request: requestImageFromOpenAI,
+        modelKey: "DALL_E_MODEL"
     },
     {
         name: "workers",
         enable: isWorkersAIEnable,
-        request: requestImageFromWorkersAI
+        request: requestImageFromWorkersAI,
+        modelKey: "WORKERS_IMAGE_MODEL"
     }
 ];
 
@@ -156,19 +149,4 @@ export function currentImageModel(agentName, context) {
     }
 }
 
-/**
- * @param {string} agentName
- * @returns {null|string}
- */
-export function imageModelKey(agentName) {
-    switch (agentName) {
-        case "azure":
-            return "AZURE_DALLE_API";
-        case "openai":
-            return "DALL_E_MODEL";
-        case "workers":
-            return "WORKERS_IMAGE_MODEL";
-        default:
-            return null;
-    }
-}
+
