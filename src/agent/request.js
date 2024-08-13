@@ -37,18 +37,10 @@ import {Stream} from "./stream.js";
  */
 function fixOpenAICompatibleOptions(options) {
     options = options || {};
-    options.streamBuilder = options.streamBuilder || function (r, c) {
-        return new Stream(r, c);
-    };
-    options.contentExtractor = options.contentExtractor || function (d) {
-        return d?.choices?.[0]?.delta?.content;
-    };
-    options.fullContentExtractor = options.fullContentExtractor || function (d) {
-        return d.choices?.[0]?.message.content;
-    };
-    options.errorExtractor = options.errorExtractor || function (d) {
-        return d.error?.message;
-    };
+    options.streamBuilder = options.streamBuilder || ((r, c) => new Stream(r, c));
+    options.contentExtractor = options.contentExtractor || (d => d?.choices?.[0]?.delta?.content);
+    options.fullContentExtractor = options.fullContentExtractor || (d => d.choices?.[0]?.message.content);
+    options.errorExtractor = options.errorExtractor || (d => d.error?.message);
     return options;
 }
 
@@ -65,14 +57,8 @@ export function isJsonResponse(resp) {
  * @return {boolean}
  */
 export function isEventStreamResponse(resp) {
-    const types = ['application/stream+json', 'text/event-stream'];
-    const content = resp.headers.get('content-type');
-    for (const type of types) {
-        if (content.indexOf(type) !== -1) {
-            return true;
-        }
-    }
-    return false;
+    const contentType = resp.headers.get('content-type');
+    return contentType?.includes('application/stream+json') || contentType?.includes('text/event-stream');
 }
 
 /**
@@ -91,11 +77,8 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     const controller = new AbortController();
     const {signal} = controller;
 
-    let timeoutID = null;
+    let timeoutID = ENV.CHAT_COMPLETE_API_TIMEOUT > 0 ? setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT) : null;
     let lastUpdateTime = Date.now();
-    if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
-        timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT);
-    }
 
     const resp = await fetch(url, {
         method: 'POST',
@@ -103,10 +86,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
         body: JSON.stringify(body),
         signal,
     });
-
-    if (timeoutID) {
-        clearTimeout(timeoutID);
-    }
+    if (timeoutID) clearTimeout(timeoutID);
 
     options = fixOpenAICompatibleOptions(options);
 
@@ -118,17 +98,14 @@ export async function requestChatCompletions(url, header, body, context, onStrea
         try {
             for await (const data of stream) {
                 const c = options.contentExtractor(data) || '';
-                if (c === '') {
-                    continue;
-                }
+                if (c === '') continue;
+
                 lengthDelta += c.length;
                 contentFull = contentFull + c;
                 if (lengthDelta > updateStep) {
-                    if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0 ){
-                        const delta = Date.now() - lastUpdateTime;
-                        if (delta < ENV.TELEGRAM_MIN_STREAM_INTERVAL) {
-                            continue;
-                        }
+                    if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0){
+                        // timeDelta < minInterval
+                        if (Date.now() - lastUpdateTime < ENV.TELEGRAM_MIN_STREAM_INTERVAL) continue;
                         lastUpdateTime = Date.now();
                     }
                     lengthDelta = 0;
@@ -142,19 +119,11 @@ export async function requestChatCompletions(url, header, body, context, onStrea
         return contentFull;
     }
 
-    if (!isJsonResponse(resp)) {
-        throw new Error(resp.statusText);
-    }
+    if (!isJsonResponse(resp)) throw new Error(resp.statusText);
 
     const result = await resp.json();
-
-    if (!result) {
-        throw new Error('Empty response');
-    }
-
-    if (options.errorExtractor(result)) {
-        throw new Error(options.errorExtractor(result));
-    }
+    if (!result) throw new Error('Empty response');
+    if (options.errorExtractor(result)) throw new Error(options.errorExtractor(result));
 
     try {
         onResult?.(result);
