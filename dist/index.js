@@ -59,9 +59,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723619013;
+  BUILD_TIMESTAMP = 1723619768;
   // 当前版本 commit id
-  BUILD_VERSION = "f0d7b64";
+  BUILD_VERSION = "d242d5a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1108,7 +1108,7 @@ async function handleCommandMessage(message, context) {
           return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(" or ")}`);
       }
     }
-    let mentioned = context.SHARE_CONTEXT.extraMessageContext?.mentioned || await mentionBotUsername(message, context), subcommand = message.text.slice(command.length).trim();
+    let mentioned = await mentionBotUsername(message, context), subcommand = message.text.slice(command.length).trim();
     if (mentioned) {
       let botName = "@" + await getBotNameWithCtx(context);
       subcommand = subcommand.replaceAll(botName, "").trim();
@@ -1267,7 +1267,7 @@ async function mentionBotUsername(message, context) {
   let botName = await getBotNameWithCtx(context);
   if (!botName)
     throw new Error("Bot has no username");
-  return botName = "@" + botName, message.text.includes(botName) ? !0 : null;
+  return botName = "@" + botName, !!message.text.includes(botName);
 }
 async function getBotNameWithCtx(context) {
   let botName = context.SHARE_CONTEXT?.currentBotName;
