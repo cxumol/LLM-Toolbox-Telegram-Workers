@@ -48,7 +48,7 @@
  * @property {string | null} chatType - 会话场景, private/group/supergroup 等, 来源 message.chat.type
  * @property {string | number | null} chatId - 会话 id, private 场景为发言人 id, group/supergroup 场景为群组 id
  * @property {string | number | null} speakerId - 发言人 id
- * @property {object | null} extraMessageContext - 额外消息上下文
+ * @property {object} extraMessageContext - 额外消息上下文
  * */
 
 /**

@@ -36,7 +36,7 @@ class ShareContext {
     chatType = null;
     chatId = null;
     speakerId = null;
-    extraMessageContext = null;
+    extraMessageContext = {};
 }
 
 /**

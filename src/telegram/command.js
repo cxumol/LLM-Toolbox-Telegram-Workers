@@ -22,6 +22,7 @@ import {
     loadImageGen
 } from "../agent/agents.js";
 import {trimUserConfig} from "../config/context.js";
+import {mentionBotUsername,getBotNameWithCtx} from "./message.js";
 
 const commandAuthCheck = { 
     default: function (chatType) {
@@ -378,7 +379,7 @@ export async function handleCommandMessage(message, context) {
     if (CUSTOM_COMMAND[message.text]) message.text = CUSTOM_COMMAND[message.text];
 
     // 查找匹配的命令
-    const command = Object.keys(commandHandlers).find(key => message.text === key || message.text.startsWith(key + ' '));
+    const command = Object.keys(commandHandlers).find(key => message.text === key || message.text.startsWith(key + ' ') || message.text.startsWith(key + '@'));
     if (!command) return null;
 
     // 提取子命令, 执行命令函数
@@ -393,8 +394,24 @@ export async function handleCommandMessage(message, context) {
                 if (!roleList.includes(chatRole)) return msgTG(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
             }
         }
-        // 提取子命令并执行
-        const subcommand = message.text.slice(command.length).trim();
+        /// Subcommand = message.text - command - mentionBotUsername
+        const mentioned = context.SHARE_CONTEXT.extraMessageContext?.mentioned || await mentionBotUsername(message, context);
+        // context.SHARE_CONTEXT.extraMessageContext.mentioned = mentioned;
+        let subcommand = message.text.slice(command.length).trim();
+        if (mentioned) {
+            const botName = '@'+await getBotNameWithCtx(context);
+            subcommand = subcommand.replaceAll(botName, '').trim();
+        }
+        
+        /* unused *
+        let cursor = command.length, subcommand="";
+        for (const mention of mentions){
+            subcommand += message.text.slice(cursor, mention[0]);
+            cursor=mention[1];
+        }
+        subcommand += message.text.slice(cursor).trim();
+        * /unused  */
+        /*debug*/console.log(`command:${command};subcommand:${subcommand}`);
         return await handler.fn(message, command, subcommand, context);
     } catch (e) {
         return msgTG(context)(`ERROR: ${e.message}`);

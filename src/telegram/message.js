@@ -107,45 +107,41 @@ async function msgHandleGroupMessage(message, context) {
         throw new Error(`Not supported message type: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
     } 
     
-
-    // 处理群组消息，过滤掉AT部分
-    let botName = context.SHARE_CONTEXT.currentBotName;
-    if (!botName) {
-        const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-        botName = context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
-    }
-    if (!botName || !message.entities || !message.text) throw new Error('Invalid message');
-
-    let { text } = message;
-    let content = '', mentioned = false, offset = 0;
-    for (const entity of message.entities) {
-        // 只处理bot_command, mention, text_mention
-        if (!['bot_command', 'mention', 'text_mention'].includes(entity.type)) continue;
-        const mention = message.text.substring(entity.offset, entity.offset + entity.length);
-        switch (entity.type) {
-            case 'bot_command':
-                if (!mentioned && mention.endsWith(botName)) {
-                    mentioned = true;
-                    content += mention.replaceAll('@' + botName, '').replaceAll(botName, '').trim();
-                    offset = entity.offset + entity.length;
-                }
-                break;
-            case 'mention':
-            case 'text_mention':
-                if (!mentioned && (mention === botName || mention === '@' + botName)) mentioned = true;
-                content += message.text.substring(offset, entity.offset);
-                offset = entity.offset + entity.length;
-                break;
-        }
-    }
-    content += text.substring(offset, text.length);
-    message.text = content.trim();
-    // 未AT机器人的消息不作处理
-    if (!mentioned) {
-        throw new Error('No mentioned');
-    }
+    const mentioned = await mentionBotUsername(message, context);
+    // 必须在群里@本bot才会回应, 否则中断回应
+    if (!mentioned) throw new Error('No mentioned');
+    /*debug*/ console.log(`mentioned:${mentioned}`);
+    context.SHARE_CONTEXT.extraMessageContext.mentioned = mentioned;
     return null;
 }
+
+/**
+ * 返回所有AT本bot的 slice pair; 无则 null
+ *
+ * @param {TelegramMessage} message
+ * @param {ContextType} context
+ * _return {Promise<Array<[number, number]>>|null}
+ * @return {bool|null}
+ */
+export async function mentionBotUsername(message, context) {
+    
+    let botName = await getBotNameWithCtx(context);
+    if (!botName) throw new Error('Bot has no username');
+    botName = '@'+botName;
+    if (!message.text.includes(botName)) return null;
+    return true;
+    // const indices = [...message.text.matchAll(new RegExp(botName, 'g'))].map(match => [match.index, match.index + botName.length]);
+    // return indices.length > 0 ? indices : null;
+}
+export async function getBotNameWithCtx(context) {
+    let botName = context.SHARE_CONTEXT?.currentBotName;
+    if (!botName) {
+        const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
+        context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
+    }
+    return botName;
+}
+
 
 /**
  * 加载消息 (或被引消息) 内第一个 URL 指向的文档
@@ -160,7 +156,6 @@ async function msgHandleUrl(message, context) {
         await sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`);
         throw new Error('Doc extraction failed');
     }
-    context.SHARE_CONTEXT.extraMessageContext = (context.SHARE_CONTEXT.extraMessageContext ?? {});
     context.SHARE_CONTEXT.extraMessageContext.doc = doc.substring(0, 4000); // conservative max context window limit
     return null;
 }
