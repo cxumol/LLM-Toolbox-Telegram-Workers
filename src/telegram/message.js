@@ -52,7 +52,7 @@ async function msgFilterWhiteList(message, context) {
         // 白名单判断
         if (!ENV.CHAT_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
             return sendMessageToTelegramWithContext(context)(
-                `You are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`,
+                `Not an authorized telegram user. Contact admin to whitelist. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`,
             );
         }
         return null;
