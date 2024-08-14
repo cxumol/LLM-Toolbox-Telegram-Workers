@@ -121,14 +121,14 @@ async function msgHandleGroupMessage(message, context) {
  * @param {TelegramMessage} message
  * @param {ContextType} context
  * _return {Promise<Array<[number, number]>>|null}
- * @return {bool|null}
+ * @return {bool}
  */
 export async function mentionBotUsername(message, context) {
     
     let botName = await getBotNameWithCtx(context);
     if (!botName) throw new Error('Bot has no username');
     botName = '@'+botName;
-    if (!message.text.includes(botName)) return null;
+    if (!message.text.includes(botName)) return false; // return null;
     return true;
     // const indices = [...message.text.matchAll(new RegExp(botName, 'g'))].map(match => [match.index, match.index + botName.length]);
     // return indices.length > 0 ? indices : null;
