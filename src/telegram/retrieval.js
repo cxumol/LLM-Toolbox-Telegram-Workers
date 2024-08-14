@@ -20,8 +20,8 @@ const sites = {
  * @returns {Promise<string>}
  */
 export async function retrieveUrlTxt(link){
+    /*debug*/console.log(link);
     const url = new URL(link);
-    /*debug*/console.log(url.hostname);
     if(sites["twitterEvil"].includes(url.hostname)){
         return await twitterGrab(url);
     }else if(sites["linkPreview"].some(host=>url.hostname.endsWith(host))){
