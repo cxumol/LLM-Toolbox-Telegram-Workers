@@ -38,7 +38,7 @@ export default {
         "prompt": "You are a helpful assistant."
       },
       "skim": {
-        "name": "Skim",
+        "name": "Summerize",
         "prompt": "Provide a concise summary of the user's input, focusing on the key takeaways and main points. Keep it brief and to the point."
       },
       "q": {
