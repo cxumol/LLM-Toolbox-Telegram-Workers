@@ -59,9 +59,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723549464;
+  BUILD_TIMESTAMP = 1723605727;
   // 当前版本 commit id
-  BUILD_VERSION = "90fcf0f";
+  BUILD_VERSION = "18303a6";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -904,7 +904,7 @@ async function actWithLLM(params, context) {
         let resp = await sendMessageToTelegramWithContext(context)(text);
         if (resp.status === 429) {
           let retryAfter = parseInt(resp.headers.get("Retry-After"));
-          if (retryAfter) {
+          if (console.log(`TG API 429, retry after ${retryAfter}s`), retryAfter) {
             nextEnableTime = Date.now() + retryAfter * 1e3;
             return;
           }
@@ -1020,7 +1020,7 @@ async function commandActWithLLM(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)("ERROR: action not found");
   let text = message.reply_to_message ? message.reply_to_message.text + `
 ` + subcommand.trim() : subcommand.trim(), extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
-  return extraCtx && console.log(extraCtx), extraCtx?.doc && (text = `<Document>
+  return extraCtx?.doc && (text = `<Document>
 ${extraCtx.doc}
 </Document>
 
@@ -1250,8 +1250,9 @@ async function msgFilterUnsupportedMessage(message, context) {
 async function msgHandleGroupMessage(message, context) {
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType))
     return null;
-  if (message.reply_to_message?.from.is_bot)
-    throw sendMessageToTelegramWithContext(context)("You can only reply to messages from people, not bots."), new Error("Not supported message type: reply to bot");
+  if (message.reply_to_message?.from.is_bot || `${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId)
+    throw sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: 
+https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`), new Error("Not supported message type: reply to a bot");
   let botName = context.SHARE_CONTEXT.currentBotName;
   if (!botName) {
     let res = await getBot(context.SHARE_CONTEXT.currentBotToken);
@@ -1283,9 +1284,9 @@ async function msgHandleUrl(message, context) {
   if (!url)
     return null;
   let doc = await retrieveUrlTxt(url);
-  if (console.log(`url: ${url}, doc: ${doc}`), !doc)
+  if (console.log(`url: ${url}, doc.length: ${doc.length}`), !doc)
     throw sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`), new Error("Doc extraction failed");
-  context.SHARE_CONTEXT.extraMessageContext = context.SHARE_CONTEXT.extraMessageContext ?? {}, context.SHARE_CONTEXT.extraMessageContext.doc = doc;
+  return context.SHARE_CONTEXT.extraMessageContext = context.SHARE_CONTEXT.extraMessageContext ?? {}, context.SHARE_CONTEXT.extraMessageContext.doc = doc.substring(0, 4e3), null;
 }
 function _getFirstUrl(message) {
   for (let msg of [message.reply_to_message, message])
