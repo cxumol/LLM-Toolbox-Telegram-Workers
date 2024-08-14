@@ -59,9 +59,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723605727;
+  BUILD_TIMESTAMP = 1723619013;
   // 当前版本 commit id
-  BUILD_VERSION = "18303a6";
+  BUILD_VERSION = "f0d7b64";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -232,7 +232,7 @@ var ShareContext = class {
   chatType = null;
   chatId = null;
   speakerId = null;
-  extraMessageContext = null;
+  extraMessageContext = {};
 }, CurrentChatContext = class {
   chat_id = null;
   reply_to_message_id = null;
@@ -1093,7 +1093,7 @@ async function commandEcho(message, command, subcommand, context) {
 }
 async function handleCommandMessage(message, context) {
   initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: commandAuthCheck.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
-  let command = Object.keys(commandHandlers).find((key) => message.text === key || message.text.startsWith(key + " "));
+  let command = Object.keys(commandHandlers).find((key) => message.text === key || message.text.startsWith(key + " ") || message.text.startsWith(key + "@"));
   if (!command)
     return null;
   let handler = commandHandlers[command];
@@ -1108,8 +1108,12 @@ async function handleCommandMessage(message, context) {
           return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(" or ")}`);
       }
     }
-    let subcommand = message.text.slice(command.length).trim();
-    return await handler.fn(message, command, subcommand, context);
+    let mentioned = context.SHARE_CONTEXT.extraMessageContext?.mentioned || await mentionBotUsername(message, context), subcommand = message.text.slice(command.length).trim();
+    if (mentioned) {
+      let botName = "@" + await getBotNameWithCtx(context);
+      subcommand = subcommand.replaceAll(botName, "").trim();
+    }
+    return console.log(`command:${command};subcommand:${subcommand}`), await handler.fn(message, command, subcommand, context);
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
@@ -1192,8 +1196,9 @@ var proxy = {
   ]
 };
 async function retrieveUrlTxt(link) {
+  console.log(link);
   let url = new URL(link);
-  if (console.log(url.hostname), sites.twitterEvil.includes(url.hostname))
+  if (sites.twitterEvil.includes(url.hostname))
     return await twitterGrab(url);
   if (sites.linkPreview.some((host) => url.hostname.endsWith(host))) {
     let html = await fetch(link).then((r) => r.text());
@@ -1250,34 +1255,27 @@ async function msgFilterUnsupportedMessage(message, context) {
 async function msgHandleGroupMessage(message, context) {
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType))
     return null;
-  if (message.reply_to_message?.from.is_bot || `${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId)
-    throw sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: 
-https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`), new Error("Not supported message type: reply to a bot");
-  let botName = context.SHARE_CONTEXT.currentBotName;
+  if (message.reply_to_message?.from.is_bot && `${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId)
+    throw await sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: 
+https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`), new Error(`Not supported message type: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
+  let mentioned = await mentionBotUsername(message, context);
+  if (!mentioned)
+    throw new Error("No mentioned");
+  return console.log(`mentioned:${mentioned}`), context.SHARE_CONTEXT.extraMessageContext.mentioned = mentioned, null;
+}
+async function mentionBotUsername(message, context) {
+  let botName = await getBotNameWithCtx(context);
+  if (!botName)
+    throw new Error("Bot has no username");
+  return botName = "@" + botName, message.text.includes(botName) ? !0 : null;
+}
+async function getBotNameWithCtx(context) {
+  let botName = context.SHARE_CONTEXT?.currentBotName;
   if (!botName) {
     let res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-    botName = context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
+    context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
   }
-  if (!botName || !message.entities || !message.text)
-    throw new Error("Invalid message");
-  let { text } = message, content = "", mentioned = !1, offset = 0;
-  for (let entity of message.entities) {
-    if (!["bot_command", "mention", "text_mention"].includes(entity.type))
-      continue;
-    let mention = message.text.substring(entity.offset, entity.offset + entity.length);
-    switch (entity.type) {
-      case "bot_command":
-        !mentioned && mention.endsWith(botName) && (mentioned = !0, content += mention.replaceAll("@" + botName, "").replaceAll(botName, "").trim(), offset = entity.offset + entity.length);
-        break;
-      case "mention":
-      case "text_mention":
-        !mentioned && (mention === botName || mention === "@" + botName) && (mentioned = !0), content += message.text.substring(offset, entity.offset), offset = entity.offset + entity.length;
-        break;
-    }
-  }
-  if (content += text.substring(offset, text.length), message.text = content.trim(), !mentioned)
-    throw new Error("No mentioned");
-  return null;
+  return botName;
 }
 async function msgHandleUrl(message, context) {
   let url = _getFirstUrl(message);
@@ -1285,8 +1283,8 @@ async function msgHandleUrl(message, context) {
     return null;
   let doc = await retrieveUrlTxt(url);
   if (console.log(`url: ${url}, doc.length: ${doc.length}`), !doc)
-    throw sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`), new Error("Doc extraction failed");
-  return context.SHARE_CONTEXT.extraMessageContext = context.SHARE_CONTEXT.extraMessageContext ?? {}, context.SHARE_CONTEXT.extraMessageContext.doc = doc.substring(0, 4e3), null;
+    throw await sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`), new Error("Doc extraction failed");
+  return context.SHARE_CONTEXT.extraMessageContext.doc = doc.substring(0, 4e3), null;
 }
 function _getFirstUrl(message) {
   for (let msg of [message.reply_to_message, message])
