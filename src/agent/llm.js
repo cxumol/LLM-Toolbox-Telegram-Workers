@@ -67,10 +67,10 @@ export async function actWithLLM(params, context) {
                     if (nextEnableTime && nextEnableTime > Date.now()) return;
 
                     const resp = await msgTG(context)(text);
-                    // 判断429
                     if (resp.status === 429) {
                         // 获取重试时间
                         const retryAfter = parseInt(resp.headers.get('Retry-After'));
+                        console.log(`TG API 429, retry after ${retryAfter}s`);
                         if (retryAfter) {
                             nextEnableTime = Date.now() + retryAfter * 1000;
                             return;

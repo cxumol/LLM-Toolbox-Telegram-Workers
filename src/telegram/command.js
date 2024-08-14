@@ -192,7 +192,7 @@ async function commandActWithLLM(message, command, subcommand, context) {
     let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
 
     const extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
-    /*debug*/ if(extraCtx)console.log(extraCtx);
+    // /*debug*/ if(extraCtx)console.log(extraCtx);
     if (extraCtx?.doc) {
         text = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + text;
     }
