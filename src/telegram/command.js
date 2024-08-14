@@ -395,8 +395,7 @@ export async function handleCommandMessage(message, context) {
             }
         }
         /// Subcommand = message.text - command - mentionBotUsername
-        const mentioned = context.SHARE_CONTEXT.extraMessageContext?.mentioned || await mentionBotUsername(message, context);
-        // context.SHARE_CONTEXT.extraMessageContext.mentioned = mentioned;
+        const mentioned = await mentionBotUsername(message, context);
         let subcommand = message.text.slice(command.length).trim();
         if (mentioned) {
             const botName = '@'+await getBotNameWithCtx(context);
