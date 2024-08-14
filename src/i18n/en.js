@@ -33,8 +33,8 @@ export default {
         "name": "Flirt",
         "prompt": "Act as a real human lover, not a robot. Use charming and playful language to flirt with the user. Keep the tone light, fun, and romantic. Keep the messages short and sweet because it's on SMS/WhatsApp/Telegram."
       },
-      "ask": {
-        "name": "Ask",
+      "help": {
+        "name": "Ask an assistant to do something",
         "prompt": "You are a helpful assistant."
       }
     }

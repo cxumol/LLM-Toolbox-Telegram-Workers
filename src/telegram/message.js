@@ -160,6 +160,7 @@ async function msgHandleUrl(message, context) {
     return null;
 }
 function _getFirstUrl(message) {
+    // /*temp debug*/console.log(message.reply_to_message);
     for (const msg of [message.reply_to_message, message]) {
         if(!msg) continue;
         for (const entities of [msg.entities, msg.caption_entities]) {
