@@ -102,9 +102,9 @@ async function msgHandleGroupMessage(message, context) {
     // 非群组消息不作处理
     if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) return null;
     // https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots
-    if ( (message.reply_to_message?.from.is_bot) || (`${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId)){
-        sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: \nhttps://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`);
-        throw new Error('Not supported message type: reply to a bot');
+    if ( (message.reply_to_message?.from.is_bot) && (`${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId) ){
+        await sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: \nhttps://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`);
+        throw new Error(`Not supported message type: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
     } 
     
 
@@ -157,7 +157,7 @@ async function msgHandleUrl(message, context) {
     const doc = await retrieveUrlTxt(url);
     /*debug*/ console.log(`url: ${url}, doc.length: ${doc.length}`);
     if (!doc){
-        sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`);
+        await sendMessageToTelegramWithContext(context)(`Doc extraction failed: ${url}`);
         throw new Error('Doc extraction failed');
     }
     context.SHARE_CONTEXT.extraMessageContext = (context.SHARE_CONTEXT.extraMessageContext ?? {});
