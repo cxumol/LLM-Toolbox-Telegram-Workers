@@ -6,19 +6,13 @@ import '../types/telegram.js';
  * @return {object}
  */
 export function trimUserConfig(userConfig) {
-    const config = {
-        ...userConfig
-    };
+    const config = {...userConfig};
     const keysSet = new Set(userConfig.DEFINE_KEYS);
-    for (const key of ENV.LOCK_USER_CONFIG_KEYS) {
-        keysSet.delete(key);
-    }
+    ENV.LOCK_USER_CONFIG_KEYS.forEach(key => keysSet.delete(key));
     keysSet.add('DEFINE_KEYS');
-    for (const key of Object.keys(config)) {
-        if (!keysSet.has(key)) {
-            delete config[key];
-        }
-    }
+    Object.keys(config).forEach(k => {
+        if (!keysSet.has(k)) delete config[k];
+    }); 
     return config;
 }
 
@@ -73,9 +67,7 @@ export class Context {
     _initChatContext(chatId, replyToMessageId) {
         this.CURRENT_CHAT_CONTEXT.chat_id = chatId;
         this.CURRENT_CHAT_CONTEXT.reply_to_message_id = replyToMessageId;
-        if (replyToMessageId) {
-            this.CURRENT_CHAT_CONTEXT.allow_sending_without_reply = true;
-        }
+        if (replyToMessageId)  this.CURRENT_CHAT_CONTEXT.allow_sending_without_reply = true;
     }
 
     //
@@ -88,9 +80,7 @@ export class Context {
     async _initUserConfig(storeKey) {
         try {
             // 复制默认配置
-            this.USER_CONFIG = {
-                ...ENV.USER_CONFIG
-            };
+            this.USER_CONFIG = {...ENV.USER_CONFIG};
             /**
              * @type {UserConfigType}
              */
@@ -106,20 +96,13 @@ export class Context {
      * @param {Request} request
      */
     initTelegramContext(request) {
-        const {pathname} = new URL(request.url);
-        const token = pathname.match(
-            /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/,
-        )[1];
+        const token = new URL(request.url).pathname.match(/^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/)[1];
         const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
-        if (telegramIndex === -1) {
-            throw new Error('Token not allowed');
-        }
+        if (telegramIndex === -1) throw new Error('TG Token not allowed');
 
         this.SHARE_CONTEXT.currentBotToken = token;
         this.SHARE_CONTEXT.currentBotId = token.split(':')[0];
-        if (ENV.TELEGRAM_BOT_NAME.length > telegramIndex) {
-            this.SHARE_CONTEXT.currentBotName = ENV.TELEGRAM_BOT_NAME[telegramIndex];
-        }
+        this.SHARE_CONTEXT.currentBotName = ENV.TELEGRAM_BOT_NAME[telegramIndex] || null; // js array out of bound just returns undefined
     }
 
     /**
@@ -130,9 +113,7 @@ export class Context {
     async _initShareContext(message) {
         this.SHARE_CONTEXT.usageKey = `usage:${this.SHARE_CONTEXT.currentBotId}`;
         const id = message?.chat?.id;
-        if (id === undefined || id === null) {
-            throw new Error('Chat id not found');
-        }
+        if (!id) throw new Error('Chat id not found');
 
         /*
       message_id每次都在变的。
@@ -148,10 +129,7 @@ export class Context {
         const botId = this.SHARE_CONTEXT.currentBotId;
         let configStoreKey = `user_config:${id}`;
         let groupAdminKey = null;
-
-        if (botId) {
-            configStoreKey += `:${botId}`;
-        }
+        if (botId) configStoreKey += `:${botId}`;
         // 标记群组消息
         if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
             if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {

@@ -197,16 +197,8 @@ export const ENV_KEY_MAPPER = {
     WORKERS_AI_MODEL: 'WORKERS_CHAT_MODEL',
 };
 
-function parseArray(raw) {
-    try {
-      return JSON.parse(raw);
-    } catch  {
-      return raw.split(',');
-    }
-}
-
 export function mergeEnvironment(target, source) {
-    for (const key in target) {
+    for (const key of Object.keys(target)) {
         // 只合并两边都有的
         if (!Object.hasOwn(source,key)) continue;
         
