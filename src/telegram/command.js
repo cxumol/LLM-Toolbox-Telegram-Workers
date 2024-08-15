@@ -24,30 +24,17 @@ import {
 import {trimUserConfig} from "../config/context.js";
 import {mentionBotUsername,getBotNameWithCtx} from "./message.js";
 
-const commandAuthCheck = { 
-    default: function (chatType) {
-        if (CONST.GROUP_TYPES.includes(chatType)) {
-            return ['administrator', 'creator'];
-        }
-        return false;
-    },
-    shareModeGroup: function (chatType) {
-        if (CONST.GROUP_TYPES.includes(chatType)) {
-            // 每个人在群里有上下文的时候，不限制; 但是在群里没有shared上下文的时候，需要管理员权限
-            if (!ENV.GROUP_CHAT_BOT_SHARE_MODE) {
-                return false;
-            }
-            return ['administrator', 'creator'];
-        }
-        return false;
-    },
+const isGroup = (T) => CONST.GROUP_TYPES.includes(T);
+const admins = ['administrator', 'creator'];
+const cmdAuthReq = { 
+    default: (chatType) => isGroup(chatType) ? admins : null,
+    // 只有群公有模式时, 才需要管理员权限
+    shareModeGroup: (chatType) => isGroup(chatType) && ENV.GROUP_CHAT_BOT_SHARE_MODE ? admins : null,
 };
 
-
 /*
-scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
-fn: commandCreateNewChatContext,
-needAuth: commandAuthCheck.default 需要群管权限, commandAuthCheck.shareModeGroup, 每个人在群里有上下文的时候，不限制; 但是在群里没有shared上下文的时候，需要管理员权限
+scopes: tg slash 补全显示域,
+needAuth: 返回权限身份array
 */ 
 
 const scopeMod = ['all_private_chats', 'all_chat_administrators'];
@@ -66,37 +53,37 @@ const commandHandlers = {
     '/act': {
         scopes: scopeFull,
         fn: commandActUndefined,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/img': {
         scopes: scopeMod,
         fn: commandGenerateImg,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/mod_env_set': {
         scopes: scopeMod,
         fn: commandUpdateUserConfig,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/mod_env_set_batch': {
         scopes: scopeMod,
         fn: commandUpdateUserConfigs,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/mod_env_del': {
         scopes: scopeMod,
         fn: commandDeleteUserConfig,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/mod_env_del_all': {
         scopes: scopeMod,
         fn: commandClearUserConfig,
-        needAuth: commandAuthCheck.shareModeGroup,
+        needAuth: cmdAuthReq.shareModeGroup,
     },
     '/mod_system': {
         scopes: scopeMod,
         fn: commandSystem,
-        needAuth: commandAuthCheck.default,
+        needAuth: cmdAuthReq.default,
     },
 };
 
@@ -113,7 +100,7 @@ function registerActCommands() {
         commandHandlers[`/act_${act}`] = {
             scopes: scopeFull,
             fn: commandActWithLLM,
-            needAuth: commandAuthCheck.shareModeGroup,
+            needAuth: cmdAuthReq.shareModeGroup,
         };
         commandSortList.splice(1,0,`/act_${act}`);
     });
@@ -373,7 +360,7 @@ export async function handleCommandMessage(message, context) {
 
     // 如果是开发模式，添加 /echo 命令用于调试
     if (ENV.DEV_MODE)
-        commandHandlers['/echo'] = { help: '[DEBUG ONLY] echo message', scopes: scopeMod, fn: commandEcho, needAuth: commandAuthCheck.default };
+        commandHandlers['/echo'] = { help: '[DEBUG ONLY] echo message', scopes: scopeMod, fn: commandEcho, needAuth: cmdAuthReq.default };
 
     // 检查是否有自定义 alias
     if (CUSTOM_COMMAND[message.text]) message.text = CUSTOM_COMMAND[message.text];
