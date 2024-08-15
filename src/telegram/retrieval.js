@@ -1,18 +1,19 @@
-const proxy={
+let proxy={
     "jina":"https://r.jina.ai/",
-    // "md": ["https://urltomarkdown.herokuapp.com/?title=true&url=",], // <doc="https://github.com/macsplit/urltomarkdown" fofa='body="Please specify a valid url query parameter"'/>
-    // "ft":  "https://12ft.io/?proxy?q=", 
+    /*// "md": ["https://urltomarkdown.herokuapp.com/?title=true&url=",], // <doc="https://github.com/macsplit/urltomarkdown" fofa='body="Please specify a valid url query parameter"'/>
+    // "ft":  "https://12ft.io/?proxy?q=", */
     "twitter":"https://fixupx.com", // <doc="github.com/FixTweet/FxTwitter"/>
     "medium":"https://r.jina.ai/https://www.smry.ai/proxy?url=",
 };
 
-const sites = {
+let sites = {
     "twitterEvil" : ["twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com", "vxtwitter.com", "fixvx.com"], // vx 比 fx 多了赞转
     "linkPreview" : ["fxtwitter.com", "fixupx.com", "twittpr.com", "fixvx.com"],
     "medium" : ["medium.com", "towardsdatascience.com","betterprogramming.pub","uxdesign.cc","thebolditalic.com","betterhumans.pub",
         "levelup.gitconnected.com","writingcooperative.com","blog.prototypr.io","ehandbook.com","hackernoon.com"],
 };
 
+let ua={headers:{'User-Agent':'facebookexternalhit/1.1'}};
 
 /**
  * 
@@ -25,7 +26,7 @@ export async function retrieveUrlTxt(link){
     if(sites["twitterEvil"].includes(url.hostname)){
         return await twitterGrab(url);
     }else if(sites["linkPreview"].some(host=>url.hostname.endsWith(host))){
-        const html = await fetch(link).then(r=>r.text());
+        const html = await fetch(link,ua).then(r=>r.text());
         return _linkpreviewParser(html);
     }else if(sites["medium"].some(host=>url.hostname.endsWith(host))){
         return await mediumGrab(url);
@@ -53,7 +54,7 @@ async function mediumGrab(url){
  */
 async function twitterGrab(url){
     const newlink = proxy["twitter"] + url.pathname;
-    const html = await fetch(newlink,{ headers:{'User-Agent':'facebookexternalhit/1.1'} }).then(r => r.text());
+    const html = await fetch(newlink,ua).then(r => r.text());
     return _linkpreviewParser(html);
 }
 
