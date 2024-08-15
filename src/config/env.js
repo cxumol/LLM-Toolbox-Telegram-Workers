@@ -198,56 +198,48 @@ export const ENV_KEY_MAPPER = {
 };
 
 function parseArray(raw) {
-    if (raw.startsWith('[') && raw.endsWith(']')) {
-        try {
-            return JSON.parse(raw);
-        } catch (e) {
-            console.error(e);
-        }
+    try {
+      return JSON.parse(raw);
+    } catch  {
+      return raw.split(',');
     }
-    return raw.split(',');
 }
 
 export function mergeEnvironment(target, source) {
-    const sourceKeys = new Set(Object.keys(source));
-    for (const key of Object.keys(target)) {
-        // 不存在的key直接跳过
-        if (!sourceKeys.has(key)) {
-            continue;
-        }
+    for (const key in target) {
+        // 只合并两边都有的
+        if (!Object.hasOwn(source,key)) continue;
+        
         const t = ENV_TYPES[key] || typeof target[key];
+        const v = source[key];
         // 不是字符串直接赋值
-        if (typeof source[key] !== 'string') {
-            target[key] = source[key];
+        if (t==='string' || typeof v !== 'string') {
+            target[key] = v;
             continue;
         }
         switch (t) {
             case 'number':
-                target[key] = parseInt(source[key], 10);
+                target[key] = parseInt(v, 10);
                 break;
             case 'boolean':
-                target[key] = (source[key] || 'false') === 'true';
-                break;
-            case 'string':
-                target[key] = source[key];
+                target[key] = (v || 'false') === 'true';
                 break;
             case 'array':
-                target[key] = parseArray(source[key]);
+                try {
+                    target[key] = JSON.parse(v);
+                } catch {
+                    target[key] = v.split(',');
+                }
                 break;
             case 'object':
-                if (Array.isArray(target[key])) {
-                    target[key] = parseArray(source[key]);
-                } else {
-                    try {
-                        target[key] = JSON.parse(source[key]);
-                    } catch (e) {
-                        console.error(e);
-                    }
+                try {
+                    target[key] = JSON.parse(v);
+                } catch (e) {
+                    console.error(e);
                 }
                 break;
             default:
-                target[key] = source[key];
-                break;
+                target[key] = v;
         }
     }
 }
@@ -278,16 +270,6 @@ export function initEnv(env, i18n) {
     mergeEnvironment(ENV, env);
     mergeEnvironment(ENV.USER_CONFIG, env);
     ENV.USER_CONFIG.DEFINE_KEYS = [];
-
-
-    // 兼容旧版配置
-    {
-        ENV.I18N = i18n((ENV.LANGUAGE || 'cn').toLowerCase());
-
-
-        // 选择对应语言的SYSTEM_INIT_MESSAGE
-        if (!ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE) {
-            ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
-        }
-    }
+    ENV.I18N = i18n((ENV.LANGUAGE || 'en').toLowerCase());
+    ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE ||= ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
 }
