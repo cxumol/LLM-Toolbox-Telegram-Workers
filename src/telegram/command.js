@@ -5,7 +5,6 @@ import {
     CUSTOM_COMMAND_DESCRIPTION,
     DATABASE,
     ENV,
-    ENV_KEY_MAPPER,
     mergeEnvironment
 } from '../config/env.js';
 import {
@@ -248,10 +247,9 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
     } else if (['update', 'batchUpdate'].includes(operation)) {
         const entries = operation === 'update' ? [subcommand.split('=')] : Object.entries(JSON.parse(subcommand));
         for (const [k, v] of entries) {
-            let key = ENV_KEY_MAPPER[k] || k;
-            if (!Object.keys(context.USER_CONFIG).includes(key) || ENV.LOCK_USER_CONFIG_KEYS.includes(key))
-                return msgTG(context)(`Key "${key}" not found or locked`);
-            updates.push({ key, value: v });
+            if (!Object.keys(context.USER_CONFIG).includes(k) || ENV.LOCK_USER_CONFIG_KEYS.includes(k))
+                return msgTG(context)(`Key "${k}" not found or locked`);
+            updates.push({ key:k, value:v });
         }
     }
 
@@ -281,10 +279,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
  * @return {Promise<Response>}
  */
 async function commandClearUserConfig(message, command, subcommand, context) {
-    await DATABASE.put(
-        context.SHARE_CONTEXT.configStoreKey,
-        "{}",
-    );
+    await DATABASE.put(context.SHARE_CONTEXT.configStoreKey,"{}");
     return msgTG(context)('Clear user config success');
 }
 
@@ -418,8 +413,7 @@ export async function bindCommandForTelegram(token) {
 
     // 填充 scopeCommandMap
     for (const key of commandSortList) {
-        if (!ENV.HIDE_COMMAND_BUTTONS.includes(key) &&
-            commandHandlers[key]?.scopes) {
+        if (!ENV.HIDE_COMMAND_BUTTONS.includes(key) && commandHandlers[key]?.scopes) {
             commandHandlers[key].scopes.forEach(scope => {
                 scopeCommandMap[scope]?.push(key);
             });
@@ -436,7 +430,7 @@ export async function bindCommandForTelegram(token) {
                 body: JSON.stringify({
                     commands: scopeCommandMap[scope].map(key => ({
                         command: key,
-                        description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name || "No description",
+                        description: keyDetail(key) || "No description",
                     })),
                     scope: {type: scope},
                 }),
@@ -454,9 +448,10 @@ export function commandsDocument() {
     return Object.keys(commandHandlers).map((key) => {
         return {
             command: key,
-            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name,
+            description: keyDetail(key),
         };
     });
 }
 
-const _pretty=(o)=>JSON.stringify(o, null, 2);
+const keyDetail=k=>ENV.I18N.command.help[k.substring(1)] || ENV.I18N.acts?.[k.slice('/act_'.length)]?.name;
+const _pretty=o=>JSON.stringify(o, null, 2);

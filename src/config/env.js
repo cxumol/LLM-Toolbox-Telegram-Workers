@@ -191,12 +191,6 @@ const ENV_TYPES = {
     GOOGLE_API_KEY: 'string',
 };
 
-export const ENV_KEY_MAPPER = {
-    CHAT_MODEL: 'OPENAI_CHAT_MODEL',
-    API_KEY: 'OPENAI_API_KEY',
-    WORKERS_AI_MODEL: 'WORKERS_CHAT_MODEL',
-};
-
 export function mergeEnvironment(target, source) {
     for (const key of Object.keys(target)) {
         // 只合并两边都有的
