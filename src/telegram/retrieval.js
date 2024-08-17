@@ -58,13 +58,8 @@ async function twitterGrab(url){
     return _linkpreviewParser(html);
 }
 
-/**
- * 
- * str -> str
- */
+/* str -> str */
 const _linkpreviewParser=html=> Array.from(
     html.matchAll(/<meta\s+(?:name|property)="(?:og:description|description)"\s+content="([^"]+)"[^>]*>/gi))
     .map(match => match[1])
     .reduce((long, cur) => cur.length > long.length ? cur : long, "");
-
-
