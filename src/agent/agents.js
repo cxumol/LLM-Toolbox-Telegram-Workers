@@ -1,6 +1,5 @@
 import {isOpenAIEnable, requestCompletionsFromOpenAI, requestImageFromOpenAI} from "./openai.js";
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from "./workersai.js";
-import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from "./gemini.js";
 import {
     isAzureEnable,
     isAzureImageEnable,
@@ -33,12 +32,6 @@ export const chatLlmAgents = [
         request: requestCompletionsFromWorkersAI,
         modelKey: "WORKERS_CHAT_MODEL"
     },
-    {
-        name: "gemini",
-        enable: isGeminiAIEnable,
-        request: requestCompletionsFromGeminiAI,
-        modelKey: "GOOGLE_COMPLETIONS_MODEL"
-    },
 ];
 
 /**
@@ -54,7 +47,6 @@ export function currentChatModel(agentName, context) {
             return _azApiToModelName(modelVal);
         case "openai":
         case "workers":
-        case "gemini":
             return modelVal;
         default:
             return null;

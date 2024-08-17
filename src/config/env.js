@@ -61,6 +61,7 @@ export class UserConfig {
     // Text-to-Image Model
     WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
 
+    /*
     // -- Gemini 配置 --
     //
     // Google Gemini API Key
@@ -69,7 +70,7 @@ export class UserConfig {
     GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
     // Google Gemini Model
     GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
-
+*/
 }
 
 

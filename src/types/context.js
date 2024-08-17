@@ -29,9 +29,6 @@
  * @property {string} WORKERS_CHAT_MODEL
  * @property {string} WORKERS_IMAGE_MODEL
  *
- * @property {string | null} GOOGLE_API_KEY
- * @property {string} GOOGLE_COMPLETIONS_API
- * @property {string} GOOGLE_COMPLETIONS_MODEL
  *
  */
 
