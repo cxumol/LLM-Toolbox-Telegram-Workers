@@ -177,16 +177,14 @@ async function commandActWithLLM(message, command, subcommand, context) {
     const act = ENV.I18N.acts[_act];
     if (!act) return msgTG(context)(`ERROR: action not found`);
 
-    let text = message.reply_to_message ? message.reply_to_message.text +'\n'+ subcommand.trim() : subcommand.trim();
+    // let text = message.reply_to_message ? message.reply_to_message.text +'\n---\n'+ subcommand : subcommand;
+    let text = subcommand, _r = message.reply_to_message?.text;
+    if (_r) text = _r + '\n---\n' + text;
 
     const extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
     // /*debug*/ if(extraCtx)console.log(extraCtx);
-    if (extraCtx?.doc) {
-        text = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + text;
-    }
-    if (extraCtx?.textInput) {
-        text = extraCtx.textInput + '\n' + text;
-    }
+    if (extraCtx?.doc) text = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + text;
+    if (extraCtx?.textInput) text = extraCtx.textInput + '\n' + text;
     
     return actWithLLM({message: text, prompt: act.prompt}, context);
 }
