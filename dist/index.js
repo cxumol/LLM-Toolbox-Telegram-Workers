@@ -7,7 +7,8 @@ var UserConfig = class {
   // AI提供商: auto, openai, azure, workers, gemini
   AI_PROVIDER = "auto";
   // AI图片提供商: auto, openai, azure, workers
-  AI_IMAGE_PROVIDER = "auto";
+  /*disabled*/
+  // AI_IMAGE_PROVIDER = 'auto';
   // 全局默认初始化消息
   SYSTEM_INIT_MESSAGE = null;
   // 全局默认初始化消息角色
@@ -24,44 +25,50 @@ var UserConfig = class {
   OPENAI_API_BASE = "https://api.openai.com/v1";
   // OpenAI API Extra Params
   OPENAI_API_EXTRA_PARAMS = {};
-  // -- DALLE 配置 --
-  //
-  // DALL-E的模型名称
-  DALL_E_MODEL = "dall-e-2";
-  // DALL-E图片尺寸
-  DALL_E_IMAGE_SIZE = "512x512";
-  // DALL-E图片质量
-  DALL_E_IMAGE_QUALITY = "standard";
-  // DALL-E图片风格
-  DALL_E_IMAGE_STYLE = "vivid";
+  /* 
+      // -- DALLE 配置 --
+      //
+      // DALL-E的模型名称
+      DALL_E_MODEL = 'dall-e-2';
+      // DALL-E图片尺寸
+      DALL_E_IMAGE_SIZE = '512x512';
+      // DALL-E图片质量
+      DALL_E_IMAGE_QUALITY = 'standard';
+      // DALL-E图片风格
+      DALL_E_IMAGE_STYLE = 'vivid';
+  */
   // -- AZURE 配置 --
   AZURE_API_KEY = null;
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
   AZURE_COMPLETIONS_API = null;
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
-  AZURE_DALLE_API = null;
+  /*disabled*/
+  // AZURE_DALLE_API = null;
   // -- Workers 配置 --
   CLOUDFLARE_ACCOUNT_ID = null;
   CLOUDFLARE_TOKEN = null;
   // Text Generation Model
   WORKERS_CHAT_MODEL = "@cf/mistral/mistral-7b-instruct-v0.1 ";
   // Text-to-Image Model
-  WORKERS_IMAGE_MODEL = "@cf/stabilityai/stable-diffusion-xl-base-1.0";
-  // -- Gemini 配置 --
-  //
-  // Google Gemini API Key
-  GOOGLE_API_KEY = null;
-  // Google Gemini API
-  GOOGLE_COMPLETIONS_API = "https://generativelanguage.googleapis.com/v1beta/models/";
-  // Google Gemini Model
-  GOOGLE_COMPLETIONS_MODEL = "gemini-pro";
+  /*disabled*/
+  //WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+  /*
+      // -- Gemini 配置 --
+      //
+      // Google Gemini API Key
+      GOOGLE_API_KEY = null;
+      // Google Gemini API
+      GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
+      // Google Gemini Model
+      GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
+  */
 }, Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723619768;
+  BUILD_TIMESTAMP = 1723860894;
   // 当前版本 commit id
-  BUILD_VERSION = "d242d5a";
+  BUILD_VERSION = "3de4c8a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -146,56 +153,39 @@ var UserConfig = class {
   CLOUDFLARE_ACCOUNT_ID: "string",
   CLOUDFLARE_TOKEN: "string",
   GOOGLE_API_KEY: "string"
-}, ENV_KEY_MAPPER = {
-  CHAT_MODEL: "OPENAI_CHAT_MODEL",
-  API_KEY: "OPENAI_API_KEY",
-  WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
 };
-function parseArray(raw) {
-  if (raw.startsWith("[") && raw.endsWith("]"))
-    try {
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error(e);
-    }
-  return raw.split(",");
-}
 function mergeEnvironment(target, source) {
-  let sourceKeys = new Set(Object.keys(source));
   for (let key of Object.keys(target)) {
-    if (!sourceKeys.has(key))
+    if (!Object.hasOwn(source, key))
       continue;
-    let t = ENV_TYPES[key] || typeof target[key];
-    if (typeof source[key] != "string") {
-      target[key] = source[key];
+    let t = ENV_TYPES[key] || typeof target[key], v = source[key];
+    if (t === "string" || typeof v != "string") {
+      target[key] = v;
       continue;
     }
     switch (t) {
       case "number":
-        target[key] = parseInt(source[key], 10);
+        target[key] = parseInt(v, 10);
         break;
       case "boolean":
-        target[key] = (source[key] || "false") === "true";
-        break;
-      case "string":
-        target[key] = source[key];
+        target[key] = (v || "false") === "true";
         break;
       case "array":
-        target[key] = parseArray(source[key]);
+        try {
+          target[key] = JSON.parse(v);
+        } catch {
+          target[key] = v.split(",");
+        }
         break;
       case "object":
-        if (Array.isArray(target[key]))
-          target[key] = parseArray(source[key]);
-        else
-          try {
-            target[key] = JSON.parse(source[key]);
-          } catch (e) {
-            console.error(e);
-          }
+        try {
+          target[key] = JSON.parse(v);
+        } catch (e) {
+          console.error(e);
+        }
         break;
       default:
-        target[key] = source[key];
-        break;
+        target[key] = v;
     }
   }
 }
@@ -207,20 +197,15 @@ function initEnv(env, i18n2) {
       let cmd = key.substring(customCommandPrefix.length);
       CUSTOM_COMMAND["/" + cmd] = env[key], CUSTOM_COMMAND_DESCRIPTION["/" + cmd] = env[customCommandDescriptionPrefix + cmd];
     }
-  mergeEnvironment(ENV, env), mergeEnvironment(ENV.USER_CONFIG, env), ENV.USER_CONFIG.DEFINE_KEYS = [], ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase()), ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE || (ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.I18N?.env?.system_init_message || "You are a helpful assistant");
+  mergeEnvironment(ENV, env), mergeEnvironment(ENV.USER_CONFIG, env), ENV.USER_CONFIG.DEFINE_KEYS = [], ENV.I18N = i18n2((ENV.LANGUAGE || "en").toLowerCase()), ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE ||= ENV.I18N?.env?.system_init_message || "You are a helpful assistant";
 }
 
 // src/config/context.js
 function trimUserConfig(userConfig) {
-  let config = {
-    ...userConfig
-  }, keysSet = new Set(userConfig.DEFINE_KEYS);
-  for (let key of ENV.LOCK_USER_CONFIG_KEYS)
-    keysSet.delete(key);
-  keysSet.add("DEFINE_KEYS");
-  for (let key of Object.keys(config))
-    keysSet.has(key) || delete config[key];
-  return config;
+  let config = { ...userConfig }, keysSet = new Set(userConfig.DEFINE_KEYS);
+  return ENV.LOCK_USER_CONFIG_KEYS.forEach((key) => keysSet.delete(key)), keysSet.add("DEFINE_KEYS"), Object.keys(config).forEach((k) => {
+    keysSet.has(k) || delete config[k];
+  }), config;
 }
 var ShareContext = class {
   currentBotId = null;
@@ -263,9 +248,7 @@ var ShareContext = class {
    */
   async _initUserConfig(storeKey) {
     try {
-      this.USER_CONFIG = {
-        ...ENV.USER_CONFIG
-      };
+      this.USER_CONFIG = { ...ENV.USER_CONFIG };
       let userConfig = JSON.parse(await DATABASE.get(storeKey));
       mergeEnvironment(this.USER_CONFIG, trimUserConfig(userConfig));
     } catch (e) {
@@ -276,12 +259,10 @@ var ShareContext = class {
    * @param {Request} request
    */
   initTelegramContext(request) {
-    let { pathname } = new URL(request.url), token = pathname.match(
-      /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/
-    )[1], telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
+    let token = new URL(request.url).pathname.match(/^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/)[1], telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
     if (telegramIndex === -1)
-      throw new Error("Token not allowed");
-    this.SHARE_CONTEXT.currentBotToken = token, this.SHARE_CONTEXT.currentBotId = token.split(":")[0], ENV.TELEGRAM_BOT_NAME.length > telegramIndex && (this.SHARE_CONTEXT.currentBotName = ENV.TELEGRAM_BOT_NAME[telegramIndex]);
+      throw new Error("TG Token not allowed");
+    this.SHARE_CONTEXT.currentBotToken = token, this.SHARE_CONTEXT.currentBotId = token.split(":")[0], this.SHARE_CONTEXT.currentBotName = ENV.TELEGRAM_BOT_NAME[telegramIndex] || null;
   }
   /**
    *
@@ -291,7 +272,7 @@ var ShareContext = class {
   async _initShareContext(message) {
     this.SHARE_CONTEXT.usageKey = `usage:${this.SHARE_CONTEXT.currentBotId}`;
     let id = message?.chat?.id;
-    if (id == null)
+    if (!id)
       throw new Error("Chat id not found");
     let botId = this.SHARE_CONTEXT.currentBotId, configStoreKey = `user_config:${id}`, groupAdminKey = null;
     botId && (configStoreKey += `:${botId}`), CONST.GROUP_TYPES.includes(message.chat?.type) && (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id && (configStoreKey += `:${message.from.id}`), groupAdminKey = `group_admin:${id}`), message?.chat?.is_forum && message?.is_topic_message && message?.message_thread_id && (configStoreKey += `:${message.message_thread_id}`), this.SHARE_CONTEXT.configStoreKey = configStoreKey, this.SHARE_CONTEXT.groupAdminKey = groupAdminKey, this.SHARE_CONTEXT.chatType = message.chat?.type, this.SHARE_CONTEXT.chatId = message.chat.id, this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
@@ -379,17 +360,6 @@ async function sendMessageToTelegram(message, token, context) {
 }
 function sendMessageToTelegramWithContext(context) {
   return async (message) => sendMessageToTelegram(message, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
-}
-async function sendPhotoToTelegram(photo, token, context) {
-  let url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`, isPhotoString = typeof photo == "string", filteredContext = Object.fromEntries(Object.entries(context).filter(([, v]) => v != null)), body = isPhotoString ? JSON.stringify({ photo, ...filteredContext }) : new FormData(), headers = isPhotoString ? { "Content-Type": "application/json" } : {};
-  return isPhotoString || (body.append("photo", photo, "photo.png"), Object.entries(filteredContext).forEach(([key, value]) => body.append(key, `${value}`))), await fetch(url, {
-    method: "POST",
-    headers,
-    body
-  });
-}
-function sendPhotoToTelegramWithContext(context) {
-  return (url) => sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
 }
 async function sendChatActionToTelegram(action, token, chatId) {
   return await fetch(
@@ -654,38 +624,8 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
   };
   return requestChatCompletions(url, header, body, context, onStream);
 }
-async function requestImageFromOpenAI(prompt, context) {
-  let url = `${context.USER_CONFIG.OPENAI_API_BASE}/images/generations`, header = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${openAIKeyFromContext(context)}`
-  }, body = {
-    prompt,
-    n: 1,
-    size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model: context.USER_CONFIG.DALL_E_MODEL
-  };
-  body.model === "dall-e-3" && (body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY, body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE);
-  let resp = await fetch(url, {
-    method: "POST",
-    headers: header,
-    body: JSON.stringify(body)
-  }).then((res) => res.json());
-  if (resp.error?.message)
-    throw new Error(resp.error.message);
-  return resp?.data?.[0]?.url;
-}
 
 // src/agent/workersai.js
-async function run(model, body, id, token) {
-  return await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      method: "POST",
-      body: JSON.stringify(body)
-    }
-  );
-}
 function isWorkersAIEnable(context) {
   return !!(context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID && context.USER_CONFIG.CLOUDFLARE_TOKEN);
 }
@@ -706,47 +646,6 @@ async function requestCompletionsFromWorkersAI(params, context, onStream) {
     return data?.errors?.[0]?.message;
   }, requestChatCompletions(url, header, body, context, onStream, null, options);
 }
-async function requestImageFromWorkersAI(prompt, context) {
-  let id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID, token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
-  return await (await run(context.USER_CONFIG.WORKERS_IMAGE_MODEL, { prompt }, id, token)).blob();
-}
-
-// src/agent/gemini.js
-function isGeminiAIEnable(context) {
-  return !!context.USER_CONFIG.GOOGLE_API_KEY;
-}
-async function requestCompletionsFromGeminiAI(params, context, onStream) {
-  let { message, prompt, history } = params;
-  onStream = null;
-  let url = `${context.USER_CONFIG.GOOGLE_COMPLETIONS_API}${context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL}:${onStream ? "streamGenerateContent" : "generateContent"}?key=${context.USER_CONFIG.GOOGLE_API_KEY}`, contentsTemp = [...history || [], { role: "user", content: message }];
-  prompt && contentsTemp.unshift({ role: "assistant", content: prompt });
-  let contents = [], rolMap = {
-    assistant: "model",
-    system: "user",
-    user: "user"
-  };
-  for (let msg of contentsTemp)
-    msg.role = rolMap[msg.role], contents.length === 0 || contents[contents.length - 1].role !== msg.role ? contents.push({
-      role: msg.role,
-      parts: [
-        {
-          text: msg.content
-        }
-      ]
-    }) : contents[contents.length - 1].parts[0].text += msg.content;
-  let data = await (await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ contents })
-  })).json();
-  try {
-    return data.candidates[0].content.parts[0].text;
-  } catch (e) {
-    throw console.error(e), data ? new Error(data?.error?.message || JSON.stringify(data)) : new Error("Empty response");
-  }
-}
 
 // src/agent/azure.js
 function azureKeyFromContext(context) {
@@ -754,9 +653,6 @@ function azureKeyFromContext(context) {
 }
 function isAzureEnable(context) {
   return !!(context.USER_CONFIG.AZURE_API_KEY && context.USER_CONFIG.AZURE_COMPLETIONS_API);
-}
-function isAzureImageEnable(context) {
-  return !!(context.USER_CONFIG.AZURE_API_KEY && context.USER_CONFIG.AZURE_DALLE_API);
 }
 async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
   let { message, prompt, history } = params, url = context.USER_CONFIG.AZURE_COMPLETIONS_API, messages = [...history || [], { role: "user", content: message }];
@@ -770,27 +666,6 @@ async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
     "api-key": azureKeyFromContext(context)
   };
   return requestChatCompletions(url, header, body, context, onStream);
-}
-async function requestImageFromAzureOpenAI(prompt, context) {
-  let url = context.USER_CONFIG.AZURE_DALLE_API, header = {
-    "Content-Type": "application/json",
-    "api-key": azureKeyFromContext(context)
-  }, body = {
-    prompt,
-    n: 1,
-    size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    style: context.USER_CONFIG.DALL_E_IMAGE_STYLE,
-    quality: context.USER_CONFIG.DALL_E_IMAGE_QUALITY
-  };
-  ["1792x1024", "1024x1024", "1024x1792"].includes(body.size) || (body.size = "1024x1024");
-  let resp = await fetch(url, {
-    method: "POST",
-    headers: header,
-    body: JSON.stringify(body)
-  }).then((res) => res.json());
-  if (resp.error?.message)
-    throw new Error(resp.error.message);
-  return resp?.data?.[0]?.url;
 }
 
 // src/agent/agents.js
@@ -812,12 +687,6 @@ var chatLlmAgents = [
     enable: isWorkersAIEnable,
     request: requestCompletionsFromWorkersAI,
     modelKey: "WORKERS_CHAT_MODEL"
-  },
-  {
-    name: "gemini",
-    enable: isGeminiAIEnable,
-    request: requestCompletionsFromGeminiAI,
-    modelKey: "GOOGLE_COMPLETIONS_MODEL"
   }
 ];
 function currentChatModel(agentName, context) {
@@ -827,7 +696,6 @@ function currentChatModel(agentName, context) {
       return _azApiToModelName(modelVal);
     case "openai":
     case "workers":
-    case "gemini":
       return modelVal;
     default:
       return null;
@@ -835,41 +703,6 @@ function currentChatModel(agentName, context) {
 }
 function loadChatLLM(context) {
   return chatLlmAgents.find((llm) => llm.name === context.USER_CONFIG.AI_PROVIDER) || chatLlmAgents.find((llm) => llm.enable(context)) || null;
-}
-var imageGenAgents = [
-  {
-    name: "azure",
-    enable: isAzureImageEnable,
-    request: requestImageFromAzureOpenAI,
-    modelKey: "AZURE_DALLE_API"
-  },
-  {
-    name: "openai",
-    enable: isOpenAIEnable,
-    request: requestImageFromOpenAI,
-    modelKey: "DALL_E_MODEL"
-  },
-  {
-    name: "workers",
-    enable: isWorkersAIEnable,
-    request: requestImageFromWorkersAI,
-    modelKey: "WORKERS_IMAGE_MODEL"
-  }
-];
-function loadImageGen(context) {
-  return imageGenAgents.find((imgGen) => imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER) || imageGenAgents.find((imgGen) => imgGen.enable(context)) || null;
-}
-function currentImageModel(agentName, context) {
-  let modelKey = imageGenAgents.find((a) => a.name === agentName)?.modelKey, modelVal = context.USER_CONFIG[modelKey];
-  switch (agentName) {
-    case "azure":
-      return _azApiToModelName(modelVal);
-    case "openai":
-    case "workers":
-      return modelVal;
-    default:
-      return null;
-  }
 }
 function _azApiToModelName(AZURE_API) {
   try {
@@ -925,13 +758,10 @@ async function actWithLLM(params, context) {
 }
 
 // src/telegram/command.js
-var commandAuthCheck = {
-  default: function(chatType) {
-    return CONST.GROUP_TYPES.includes(chatType) ? ["administrator", "creator"] : !1;
-  },
-  shareModeGroup: function(chatType) {
-    return CONST.GROUP_TYPES.includes(chatType) && ENV.GROUP_CHAT_BOT_SHARE_MODE ? ["administrator", "creator"] : !1;
-  }
+var isGroup = (T) => CONST.GROUP_TYPES.includes(T), admins = ["administrator", "creator"], cmdAuthReq = {
+  default: (chatType) => isGroup(chatType) ? admins : null,
+  // 只有群公有模式时, 才需要管理员权限
+  shareModeGroup: (chatType) => isGroup(chatType) && ENV.GROUP_CHAT_BOT_SHARE_MODE ? admins : null
 }, scopeMod = ["all_private_chats", "all_chat_administrators"], scopeFull = scopeMod.concat(["all_group_chats"]), commandHandlers = {
   "/help": {
     scopes: scopeMod,
@@ -944,37 +774,39 @@ var commandAuthCheck = {
   "/act": {
     scopes: scopeFull,
     fn: commandActUndefined,
-    needAuth: commandAuthCheck.shareModeGroup
+    needAuth: cmdAuthReq.shareModeGroup
   },
-  "/img": {
-    scopes: scopeMod,
-    fn: commandGenerateImg,
-    needAuth: commandAuthCheck.shareModeGroup
+  /*
+  '/img': {
+      scopes: scopeMod,
+      fn: commandGenerateImg,
+      needAuth: cmdAuthReq.shareModeGroup,
   },
+  */
   "/mod_env_set": {
     scopes: scopeMod,
     fn: commandUpdateUserConfig,
-    needAuth: commandAuthCheck.shareModeGroup
+    needAuth: cmdAuthReq.shareModeGroup
   },
   "/mod_env_set_batch": {
     scopes: scopeMod,
     fn: commandUpdateUserConfigs,
-    needAuth: commandAuthCheck.shareModeGroup
+    needAuth: cmdAuthReq.shareModeGroup
   },
   "/mod_env_del": {
     scopes: scopeMod,
     fn: commandDeleteUserConfig,
-    needAuth: commandAuthCheck.shareModeGroup
+    needAuth: cmdAuthReq.shareModeGroup
   },
   "/mod_env_del_all": {
     scopes: scopeMod,
     fn: commandClearUserConfig,
-    needAuth: commandAuthCheck.shareModeGroup
+    needAuth: cmdAuthReq.shareModeGroup
   },
   "/mod_system": {
     scopes: scopeMod,
     fn: commandSystem,
-    needAuth: commandAuthCheck.default
+    needAuth: cmdAuthReq.default
   }
 }, commandSortList = Object.keys(commandHandlers).filter((key) => !["/start", "/img"].includes(key));
 function initDynamicCommands() {
@@ -985,19 +817,9 @@ function registerActCommands() {
     commandHandlers[`/act_${act}`] = {
       scopes: scopeFull,
       fn: commandActWithLLM,
-      needAuth: commandAuthCheck.shareModeGroup
+      needAuth: cmdAuthReq.shareModeGroup
     }, commandSortList.splice(1, 0, `/act_${act}`);
   });
-}
-async function commandGenerateImg(message, command, subcommand, context) {
-  if (subcommand === "")
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
-  let gen = loadImageGen(context)?.request;
-  if (!gen)
-    return sendMessageToTelegramWithContext(context)("ERROR: Image generator not found");
-  setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
-  let img = await gen(subcommand, context);
-  return sendPhotoToTelegramWithContext(context)(img);
 }
 async function commandGetHelp(message, command, subcommand, context) {
   let helpSections = [
@@ -1018,14 +840,17 @@ async function commandActWithLLM(message, command, subcommand, context) {
   let _act = command.split("_").slice(1).join("_"), act = ENV.I18N.acts[_act];
   if (!act)
     return sendMessageToTelegramWithContext(context)("ERROR: action not found");
-  let text = message.reply_to_message ? message.reply_to_message.text + `
-` + subcommand.trim() : subcommand.trim(), extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
-  return extraCtx?.doc && (text = `<Document>
+  let txt = subcommand, _r = message.reply_to_message?.text;
+  _r && (txt = _r + `
+---
+` + txt);
+  let extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
+  return extraCtx?.doc && (txt = `<Document>
 ${extraCtx.doc}
 </Document>
 
-` + text), extraCtx?.textInput && (text = extraCtx.textInput + `
-` + text), actWithLLM({ message: text, prompt: act.prompt }, context);
+` + txt), extraCtx?.textInput && (txt = extraCtx.textInput + `
+` + txt), actWithLLM({ message: txt, prompt: act.prompt }, context);
 }
 async function commandUpdateUserConfig(message, command, subcommand, context) {
   return _handleUserConfig(message, command, subcommand, context, "update");
@@ -1045,31 +870,26 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
   } else if (["update", "batchUpdate"].includes(operation)) {
     let entries = operation === "update" ? [subcommand.split("=")] : Object.entries(JSON.parse(subcommand));
     for (let [k, v] of entries) {
-      let key = ENV_KEY_MAPPER[k] || k;
-      if (!Object.keys(context.USER_CONFIG).includes(key) || ENV.LOCK_USER_CONFIG_KEYS.includes(key))
-        return sendMessageToTelegramWithContext(context)(`Key "${key}" not found or locked`);
-      updates.push({ key, value: v });
+      if (!Object.keys(context.USER_CONFIG).includes(k) || ENV.LOCK_USER_CONFIG_KEYS.includes(k))
+        return sendMessageToTelegramWithContext(context)(`Key "${k}" not found or locked`);
+      updates.push({ key: k, value: v });
     }
   }
-  mergeEnvironment(context.USER_CONFIG, Object.fromEntries(updates.map(({ key, value }) => [key, value]))), context.USER_CONFIG.DEFINE_KEYS = updates.map((u) => u.key).filter((k) => context.USER_CONFIG[k] !== null), await DATABASE.put(
+  return mergeEnvironment(context.USER_CONFIG, Object.fromEntries(updates.map(({ key, value }) => [key, value]))), context.USER_CONFIG.DEFINE_KEYS = updates.map((u) => u.key).filter((k) => context.USER_CONFIG[k] !== null), await DATABASE.put(
     context.SHARE_CONTEXT.configStoreKey,
     JSON.stringify(trimUserConfig(context.USER_CONFIG))
-  );
-  let action = operation === "delete" ? "Deleted" : "Updated";
-  return sendMessageToTelegramWithContext(context)(`${action} user config successfully`);
+  ), sendMessageToTelegramWithContext(context)(`${operation} user config successfully`);
 }
 async function commandClearUserConfig(message, command, subcommand, context) {
-  return await DATABASE.put(
-    context.SHARE_CONTEXT.configStoreKey,
-    "{}"
-  ), sendMessageToTelegramWithContext(context)("Clear user config success");
+  return await DATABASE.put(context.SHARE_CONTEXT.configStoreKey, "{}"), sendMessageToTelegramWithContext(context)("Clear user config success");
 }
 async function commandSystem(message, command, subcommand, context) {
-  let chatAgent = loadChatLLM(context), imageAgent = loadImageGen(context), agent = {
-    AI_PROVIDER: chatAgent?.name,
-    AI_IMAGE_PROVIDER: imageAgent?.name
+  let chatAgent = loadChatLLM(context), agent = {
+    AI_PROVIDER: chatAgent?.name
+    /*disabled*/
+    //  AI_IMAGE_PROVIDER: imageAgent?.name,
   };
-  agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context), agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
+  agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context);
   let msg = `AGENT: ${_pretty(agent)}
 `;
   if (ENV.DEV_MODE) {
@@ -1092,7 +912,7 @@ async function commandEcho(message, command, subcommand, context) {
   return context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML", sendMessageToTelegramWithContext(context)(msg);
 }
 async function handleCommandMessage(message, context) {
-  initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: commandAuthCheck.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
+  initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: cmdAuthReq.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
   let command = Object.keys(commandHandlers).find((key) => message.text === key || message.text.startsWith(key + " ") || message.text.startsWith(key + "@"));
   if (!command)
     return null;
@@ -1139,7 +959,7 @@ async function bindCommandForTelegram(token) {
         body: JSON.stringify({
           commands: scopeCommandMap[scope].map((key) => ({
             command: key,
-            description: ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice(5)]?.name || "No description"
+            description: keyDetail(key) || "No description"
           })),
           scope: { type: scope }
         })
@@ -1147,7 +967,7 @@ async function bindCommandForTelegram(token) {
     ).then((res) => res.json());
   return { ok: !0, result, scopeCommandMap };
 }
-var _pretty = (o) => JSON.stringify(o, null, 2);
+var keyDetail = (k) => ENV.I18N.command.help[k.substring(1)] || ENV.I18N.acts?.[k.slice(5)]?.name, _pretty = (o) => JSON.stringify(o, null, 2);
 
 // src/utils/utils.js
 function renderHTML(body) {
@@ -1172,8 +992,8 @@ async function makeResponse200(resp) {
 // src/telegram/retrieval.js
 var proxy = {
   jina: "https://r.jina.ai/",
-  // "md": ["https://urltomarkdown.herokuapp.com/?title=true&url=",], // <doc="https://github.com/macsplit/urltomarkdown" fofa='body="Please specify a valid url query parameter"'/>
-  // "ft":  "https://12ft.io/?proxy?q=", 
+  /*// "md": ["https://urltomarkdown.herokuapp.com/?title=true&url=",], // <doc="https://github.com/macsplit/urltomarkdown" fofa='body="Please specify a valid url query parameter"'/>
+  // "ft":  "https://12ft.io/?proxy?q=", */
   twitter: "https://fixupx.com",
   // <doc="github.com/FixTweet/FxTwitter"/>
   medium: "https://r.jina.ai/https://www.smry.ai/proxy?url="
@@ -1194,14 +1014,14 @@ var proxy = {
     "ehandbook.com",
     "hackernoon.com"
   ]
-};
+}, ua = { headers: { "User-Agent": "facebookexternalhit/1.1" } };
 async function retrieveUrlTxt(link) {
   console.log(link);
   let url = new URL(link);
   if (sites.twitterEvil.includes(url.hostname))
     return await twitterGrab(url);
   if (sites.linkPreview.some((host) => url.hostname.endsWith(host))) {
-    let html = await fetch(link).then((r) => r.text());
+    let html = await fetch(link, ua).then((r) => r.text());
     return _linkpreviewParser(html);
   } else if (sites.medium.some((host) => url.hostname.endsWith(host)))
     return await mediumGrab(url);
@@ -1213,7 +1033,7 @@ async function mediumGrab(url) {
 `) + 1).trim();
 }
 async function twitterGrab(url) {
-  let newlink = proxy.twitter + url.pathname, html = await fetch(newlink, { headers: { "User-Agent": "facebookexternalhit/1.1" } }).then((r) => r.text());
+  let newlink = proxy.twitter + url.pathname, html = await fetch(newlink, ua).then((r) => r.text());
   return _linkpreviewParser(html);
 }
 var _linkpreviewParser = (html) => Array.from(
@@ -1232,7 +1052,7 @@ async function msgFilterWhiteList(message, context) {
     return null;
   if (context.SHARE_CONTEXT.chatType === "private")
     return ENV.CHAT_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`) ? null : sendMessageToTelegramWithContext(context)(
-      `You are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`
+      `Not an authorized telegram user. Contact admin to whitelist. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`
     );
   if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
     if (!ENV.GROUP_CHAT_BOT_ENABLE)
@@ -1488,9 +1308,33 @@ var en_default = {
       name: "Flirt",
       prompt: "Act as a real human lover, not a robot. Use charming and playful language to flirt with the user. Keep the tone light, fun, and romantic. Keep the messages short and sweet because it's on SMS/WhatsApp/Telegram."
     },
-    ask: {
-      name: "Ask",
+    help: {
+      name: "Ask an assistant to do something",
       prompt: "You are a helpful assistant."
+    },
+    skim: {
+      name: "Summerize",
+      prompt: "Provide a concise summary of the user's input, focusing on the key takeaways and main points. Keep it brief and to the point."
+    },
+    q: {
+      name: "Question",
+      prompt: "Generate 3 critical thinking questions and 3 constructive questions based on the user's input.  Critical thinking questions should challenge assumptions and explore potential weaknesses. Constructive questions should focus on solutions, improvements, and next steps."
+    },
+    chktruth: {
+      name: "Check Truth",
+      prompt: "Analyze the likelihood of the user's input being true based on logic, reasoning, and common sense. Explain your reasoning and identify any potential flaws or inconsistencies in the information provided."
+    },
+    chkscam: {
+      name: "Check Scam",
+      prompt: "Analyze the user's input for potential signs of a scam. Consider factors such as unrealistic promises, requests for personal information, pressure tactics, and suspicious links or attachments. Provide a clear assessment of the likelihood of it being a scam and explain your reasoning."
+    },
+    ans: {
+      name: "Consider & Reply",
+      prompt: "Analyze user's input, and then express your opinion or give your answer."
+    },
+    explain: {
+      name: "Explain",
+      prompt: "Explain the content given by user."
     }
   }
 };

@@ -14,7 +14,7 @@ export class UserConfig {
     // AI提供商: auto, openai, azure, workers, gemini
     AI_PROVIDER = 'auto';
     // AI图片提供商: auto, openai, azure, workers
-    AI_IMAGE_PROVIDER = 'auto';
+    /*disabled*/ // AI_IMAGE_PROVIDER = 'auto';
     // 全局默认初始化消息
     SYSTEM_INIT_MESSAGE = null;
     // 全局默认初始化消息角色
@@ -32,7 +32,7 @@ export class UserConfig {
     OPENAI_API_BASE = 'https://api.openai.com/v1';
     // OpenAI API Extra Params
     OPENAI_API_EXTRA_PARAMS = {};
-
+/* 
     // -- DALLE 配置 --
     //
     // DALL-E的模型名称
@@ -43,14 +43,14 @@ export class UserConfig {
     DALL_E_IMAGE_QUALITY = 'standard';
     // DALL-E图片风格
     DALL_E_IMAGE_STYLE = 'vivid';
-
+*/
     // -- AZURE 配置 --
 
     AZURE_API_KEY = null;
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
     AZURE_COMPLETIONS_API = null;
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
-    AZURE_DALLE_API = null;
+    /*disabled*/ // AZURE_DALLE_API = null;
 
     // -- Workers 配置 --
 
@@ -59,7 +59,7 @@ export class UserConfig {
     // Text Generation Model
     WORKERS_CHAT_MODEL = '@cf/mistral/mistral-7b-instruct-v0.1 ';
     // Text-to-Image Model
-    WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+    /*disabled*/ //WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
 
     /*
     // -- Gemini 配置 --
