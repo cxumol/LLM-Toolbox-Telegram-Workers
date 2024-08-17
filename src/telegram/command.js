@@ -177,16 +177,15 @@ async function commandActWithLLM(message, command, subcommand, context) {
     const act = ENV.I18N.acts[_act];
     if (!act) return msgTG(context)(`ERROR: action not found`);
 
-    // let text = message.reply_to_message ? message.reply_to_message.text +'\n---\n'+ subcommand : subcommand;
-    let text = subcommand, _r = message.reply_to_message?.text;
-    if (_r) text = _r + '\n---\n' + text;
+    let txt = subcommand, _r = message.reply_to_message?.text;
+    if (_r) txt = _r + '\n---\n' + txt;
 
     const extraCtx = context.SHARE_CONTEXT?.extraMessageContext;
     // /*debug*/ if(extraCtx)console.log(extraCtx);
-    if (extraCtx?.doc) text = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + text;
-    if (extraCtx?.textInput) text = extraCtx.textInput + '\n' + text;
+    if (extraCtx?.doc) txt = `<Document>\n${extraCtx.doc}\n</Document>\n\n` + txt;
+    if (extraCtx?.textInput) txt = extraCtx.textInput + '\n' + txt;
     
-    return actWithLLM({message: text, prompt: act.prompt}, context);
+    return actWithLLM({message: txt, prompt: act.prompt}, context);
 }
 
 /**
@@ -256,9 +255,9 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
         }
     }
 
-    // for (const { key, value } of updates) {
+    /* for (const { key, value } of updates) {
     //     context.USER_CONFIG[key] = value;
-    // }
+    // } */
     mergeEnvironment(context.USER_CONFIG, Object.fromEntries( updates.map( ({ key, value }) => [key, value] ) ) );
 
     context.USER_CONFIG.DEFINE_KEYS = updates.map(u => u.key).filter(k => context.USER_CONFIG[k] !== null);
@@ -268,8 +267,7 @@ async function _handleUserConfig(message, command, subcommand, context, operatio
         JSON.stringify(trimUserConfig(context.USER_CONFIG)),
     );
 
-    const action = operation === 'delete' ? 'Deleted' : 'Updated';
-    return msgTG(context)(`${action} user config successfully`);
+    return msgTG(context)(`${operation} user config successfully`);
 }
 
 
