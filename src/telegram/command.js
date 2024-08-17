@@ -9,16 +9,16 @@ import {
 } from '../config/env.js';
 import {
     getChatRoleWithContext,
-    sendChatActionToTelegramWithContext,
+    //sendChatActionToTelegramWithContext,
     sendMessageToTelegramWithContext as msgTG,
-    sendPhotoToTelegramWithContext,
+    //sendPhotoToTelegramWithContext,
 } from './telegram.js';
 import {actWithLLM} from '../agent/llm.js';
 import {
     currentChatModel,
-    currentImageModel,
+    // currentImageModel,
     loadChatLLM,
-    loadImageGen
+    // loadImageGen
 } from "../agent/agents.js";
 import {trimUserConfig} from "../config/context.js";
 import {mentionBotUsername,getBotNameWithCtx} from "./message.js";
@@ -54,11 +54,13 @@ const commandHandlers = {
         fn: commandActUndefined,
         needAuth: cmdAuthReq.shareModeGroup,
     },
+    /*
     '/img': {
         scopes: scopeMod,
         fn: commandGenerateImg,
         needAuth: cmdAuthReq.shareModeGroup,
     },
+    */
     '/mod_env_set': {
         scopes: scopeMod,
         fn: commandUpdateUserConfig,
@@ -105,6 +107,8 @@ function registerActCommands() {
     });
 }
 
+
+
 /**
  * /img 命令
  *
@@ -114,6 +118,7 @@ function registerActCommands() {
  * @param {ContextType} context
  * @return {Promise<Response>}
  */
+/*
 async function commandGenerateImg(message, command, subcommand, context) {
     if (subcommand === '')
         return msgTG(context)(ENV.I18N.command.help.img);
@@ -125,6 +130,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
 }
+*/
+
 
 /**
  * /help 获取帮助信息
@@ -295,13 +302,13 @@ async function commandClearUserConfig(message, command, subcommand, context) {
  */
 async function commandSystem(message, command, subcommand, context) {
     let chatAgent = loadChatLLM(context);
-    let imageAgent = loadImageGen(context);
+    /*disabled*/ // let imageAgent = loadImageGen(context);
     const agent = {
         AI_PROVIDER: chatAgent?.name,
-        AI_IMAGE_PROVIDER: imageAgent?.name,
+       /*disabled*/ //  AI_IMAGE_PROVIDER: imageAgent?.name,
     };
     agent[chatAgent.modelKey] = currentChatModel(chatAgent?.name, context);
-    agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
+    /*disabled*/ // agent[imageAgent.modelKey] = currentImageModel(imageAgent?.name, context);
 
     let msg = `AGENT: ${_pretty(agent)}\n`;
     if (ENV.DEV_MODE) {
