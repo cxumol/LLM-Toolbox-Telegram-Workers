@@ -13,8 +13,7 @@ export class UserConfig {
     //
     // AI提供商: auto, openai, azure, workers, gemini
     AI_PROVIDER = 'auto';
-    // AI图片提供商: auto, openai, azure, workers
-    /*disabled*/ // AI_IMAGE_PROVIDER = 'auto';
+    // AI图片提供商: disabled
     // 全局默认初始化消息
     SYSTEM_INIT_MESSAGE = null;
     // 全局默认初始化消息角色
@@ -32,25 +31,14 @@ export class UserConfig {
     OPENAI_API_BASE = 'https://api.openai.com/v1';
     // OpenAI API Extra Params
     OPENAI_API_EXTRA_PARAMS = {};
-/* 
-    // -- DALLE 配置 --
-    //
-    // DALL-E的模型名称
-    DALL_E_MODEL = 'dall-e-2';
-    // DALL-E图片尺寸
-    DALL_E_IMAGE_SIZE = '512x512';
-    // DALL-E图片质量
-    DALL_E_IMAGE_QUALITY = 'standard';
-    // DALL-E图片风格
-    DALL_E_IMAGE_STYLE = 'vivid';
-*/
+    // -- DALLE 配置 -- disabled
     // -- AZURE 配置 --
 
     AZURE_API_KEY = null;
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
     AZURE_COMPLETIONS_API = null;
     // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
-    /*disabled*/ // AZURE_DALLE_API = null;
+    // AZURE_DALLE_API = null; disabled
 
     // -- Workers 配置 --
 
@@ -58,19 +46,7 @@ export class UserConfig {
     CLOUDFLARE_TOKEN = null;
     // Text Generation Model
     WORKERS_CHAT_MODEL = '@cf/mistral/mistral-7b-instruct-v0.1 ';
-    // Text-to-Image Model
-    /*disabled*/ //WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
-
-    /*
-    // -- Gemini 配置 --
-    //
-    // Google Gemini API Key
-    GOOGLE_API_KEY = null;
-    // Google Gemini API
-    GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
-    // Google Gemini Model
-    GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
-*/
+    // Text-to-Image Model disabled
 }
 
 
@@ -119,7 +95,7 @@ class Environment {
         'OPENAI_API_BASE',
         'GOOGLE_COMPLETIONS_API',
         'AZURE_COMPLETIONS_API',
-        'AZURE_DALLE_API',
+        // 'AZURE_DALLE_API',
     ];
 
     // -- 群组相关 --
@@ -147,12 +123,7 @@ class Environment {
     //
     // 隐藏部分命令按钮
     HIDE_COMMAND_BUTTONS = [];
-    /*
-    // 显示快捷回复按钮
-    SHOW_REPLY_BUTTON = false;
-    // 而外引用消息开关
-    EXTRA_MESSAGE_CONTEXT = false;
-    */
+    
 
     // -- 模式开关 --
     //
@@ -164,7 +135,6 @@ class Environment {
     DEBUG_MODE = false;
     // 开发模式
     DEV_MODE = false;
-
 
     USER_CONFIG = new UserConfig();
 }
