@@ -4,6 +4,8 @@
  * @typedef {Object} UserConfigType
  *
  * @property {string[]} DEFINE_KEYS
+ * 
+ * @property {Object.<string, ActionType>} CUSTOM_ACTTIONS
  *
  * @property {string} AI_PROVIDER
  * @property {string} AI_IMAGE_PROVIDER
@@ -30,6 +32,12 @@
  * @property {string} WORKERS_IMAGE_MODEL
  *
  *
+ */
+
+/**
+ * @typedef {Object} ActionType
+ * @property {string} name - The name of the action.
+ * @property {string} prompt - The system prompt for the action.
  */
 
 /**

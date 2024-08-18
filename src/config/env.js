@@ -210,7 +210,6 @@ export function initEnv(env, i18n) {
 
     // 全局对象
     DATABASE = env.DATABASE;
-    // API_GUARD = env.API_GUARD;
 
     // 绑定自定义命令
     const customCommandPrefix = 'CUSTOM_COMMAND_';
