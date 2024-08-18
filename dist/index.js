@@ -40,9 +40,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723955339;
+  BUILD_TIMESTAMP = 1723960092;
   // 当前版本 commit id
-  BUILD_VERSION = "9bfc16b";
+  BUILD_VERSION = "8239b54";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
