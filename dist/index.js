@@ -6,15 +6,13 @@ var UserConfig = class {
   //
   // AI提供商: auto, openai, azure, workers, gemini
   AI_PROVIDER = "auto";
-  // AI图片提供商: auto, openai, azure, workers
-  /*disabled*/
-  // AI_IMAGE_PROVIDER = 'auto';
+  // AI图片提供商: disabled
   // 全局默认初始化消息
   SYSTEM_INIT_MESSAGE = null;
   // 全局默认初始化消息角色
   SYSTEM_INIT_MESSAGE_ROLE = "system";
   // 自定义动作
-  CUSTOM_ACTTIONS = {};
+  MY_ACTIONS = {};
   // -- Open AI 配置 --
   //
   // OpenAI API Key
@@ -25,50 +23,26 @@ var UserConfig = class {
   OPENAI_API_BASE = "https://api.openai.com/v1";
   // OpenAI API Extra Params
   OPENAI_API_EXTRA_PARAMS = {};
-  /* 
-      // -- DALLE 配置 --
-      //
-      // DALL-E的模型名称
-      DALL_E_MODEL = 'dall-e-2';
-      // DALL-E图片尺寸
-      DALL_E_IMAGE_SIZE = '512x512';
-      // DALL-E图片质量
-      DALL_E_IMAGE_QUALITY = 'standard';
-      // DALL-E图片风格
-      DALL_E_IMAGE_STYLE = 'vivid';
-  */
+  // -- DALLE 配置 -- disabled
   // -- AZURE 配置 --
   AZURE_API_KEY = null;
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
   AZURE_COMPLETIONS_API = null;
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
-  /*disabled*/
-  // AZURE_DALLE_API = null;
+  // AZURE_DALLE_API = null; disabled
   // -- Workers 配置 --
   CLOUDFLARE_ACCOUNT_ID = null;
   CLOUDFLARE_TOKEN = null;
   // Text Generation Model
   WORKERS_CHAT_MODEL = "@cf/mistral/mistral-7b-instruct-v0.1 ";
-  // Text-to-Image Model
-  /*disabled*/
-  //WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
-  /*
-      // -- Gemini 配置 --
-      //
-      // Google Gemini API Key
-      GOOGLE_API_KEY = null;
-      // Google Gemini API
-      GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
-      // Google Gemini Model
-      GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
-  */
+  // Text-to-Image Model disabled
 }, Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723860894;
+  BUILD_TIMESTAMP = 1723955339;
   // 当前版本 commit id
-  BUILD_VERSION = "3de4c8a";
+  BUILD_VERSION = "9bfc16b";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -101,8 +75,8 @@ var UserConfig = class {
     // 默认为API BASE 防止被替换导致token 泄露
     "OPENAI_API_BASE",
     "GOOGLE_COMPLETIONS_API",
-    "AZURE_COMPLETIONS_API",
-    "AZURE_DALLE_API"
+    "AZURE_COMPLETIONS_API"
+    // 'AZURE_DALLE_API',
   ];
   // -- 群组相关 --
   //
@@ -126,12 +100,6 @@ var UserConfig = class {
   //
   // 隐藏部分命令按钮
   HIDE_COMMAND_BUTTONS = [];
-  /*
-  // 显示快捷回复按钮
-  SHOW_REPLY_BUTTON = false;
-  // 而外引用消息开关
-  EXTRA_MESSAGE_CONTEXT = false;
-  */
   // -- 模式开关 --
   //
   // 使用流模式
@@ -158,7 +126,7 @@ function mergeEnvironment(target, source) {
   for (let key of Object.keys(target)) {
     if (!Object.hasOwn(source, key))
       continue;
-    let t = ENV_TYPES[key] || typeof target[key], v = source[key];
+    let t = ENV_TYPES[key] || Array.isArray(target[key]) ? "array" : typeof target[key], v = source[key];
     if (t === "string" || typeof v != "string") {
       target[key] = v;
       continue;
@@ -179,7 +147,7 @@ function mergeEnvironment(target, source) {
         break;
       case "object":
         try {
-          target[key] = JSON.parse(v);
+          Object.assign(target[key], JSON.parse(v));
         } catch (e) {
           console.error(e);
         }
@@ -809,11 +777,11 @@ var isGroup = (T) => CONST.GROUP_TYPES.includes(T), admins = ["administrator", "
     needAuth: cmdAuthReq.default
   }
 }, commandSortList = Object.keys(commandHandlers).filter((key) => !["/start", "/img"].includes(key));
-function initDynamicCommands() {
-  registerActCommands();
+function initDynamicCommands(context) {
+  registerActCommands(context);
 }
-function registerActCommands() {
-  Object.keys(ENV.I18N.acts).forEach((act) => {
+function registerActCommands(context) {
+  ENV.acts = {}, Object.assign(ENV.acts, ENV.I18N.acts), Object.assign(ENV.acts, context?.USER_CONFIG?.MY_ACTIONS || ENV?.USER_CONFIG?.MY_ACTIONS), Object.keys(ENV.acts).forEach((act) => {
     commandHandlers[`/act_${act}`] = {
       scopes: scopeFull,
       fn: commandActWithLLM,
@@ -824,7 +792,7 @@ function registerActCommands() {
 async function commandGetHelp(message, command, subcommand, context) {
   let helpSections = [
     ENV.I18N.command.help.summary,
-    ...Object.keys(commandHandlers).map((key) => `${key.replaceAll("_", "\\_")}\uFF1A${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice(5)]?.name}`),
+    ...Object.keys(commandHandlers).map((key) => `${key.replaceAll("_", "\\_")}\uFF1A${keyDetail(key)}`),
     ...Object.keys(CUSTOM_COMMAND).filter((key) => CUSTOM_COMMAND_DESCRIPTION[key]).map((key) => `${key}\uFF1A${CUSTOM_COMMAND_DESCRIPTION[key]}`)
   ];
   return sendMessageToTelegramWithContext(context)(helpSections.join(`
@@ -832,12 +800,13 @@ async function commandGetHelp(message, command, subcommand, context) {
 }
 async function commandActUndefined(message, command, subcommand, context) {
   context.CURRENT_CHAT_CONTEXT.reply_markup = '{"remove_keyboard":true,"selective":true}';
-  let msgText = Object.keys(ENV.I18N.acts).map((key) => `/act\\_${key}\uFF1A${ENV.I18N.acts[key].name}`).join(`
+  let msgText = `Let LLM do it for you.
+` + Object.keys(ENV.acts).map((key) => `/act\\_${key.replaceAll("_", "\\_")}\uFF1A${ENV.acts[key].name}`).join(`
 `);
   return sendMessageToTelegramWithContext(context)(msgText);
 }
 async function commandActWithLLM(message, command, subcommand, context) {
-  let _act = command.split("_").slice(1).join("_"), act = ENV.I18N.acts[_act];
+  let _act = command.split("_").slice(1).join("_"), act = ENV.acts[_act];
   if (!act)
     return sendMessageToTelegramWithContext(context)("ERROR: action not found");
   let txt = subcommand, _r = message.reply_to_message?.text;
@@ -912,7 +881,7 @@ async function commandEcho(message, command, subcommand, context) {
   return context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML", sendMessageToTelegramWithContext(context)(msg);
 }
 async function handleCommandMessage(message, context) {
-  initDynamicCommands(), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: cmdAuthReq.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
+  initDynamicCommands(context), ENV.DEV_MODE && (commandHandlers["/echo"] = { help: "[DEBUG ONLY] echo message", scopes: scopeMod, fn: commandEcho, needAuth: cmdAuthReq.default }), CUSTOM_COMMAND[message.text] && (message.text = CUSTOM_COMMAND[message.text]);
   let command = Object.keys(commandHandlers).find((key) => message.text === key || message.text.startsWith(key + " ") || message.text.startsWith(key + "@"));
   if (!command)
     return null;
@@ -967,7 +936,7 @@ async function bindCommandForTelegram(token) {
     ).then((res) => res.json());
   return { ok: !0, result, scopeCommandMap };
 }
-var keyDetail = (k) => ENV.I18N.command.help[k.substring(1)] || ENV.I18N.acts?.[k.slice(5)]?.name, _pretty = (o) => JSON.stringify(o, null, 2);
+var keyDetail = (k) => ENV.I18N.command.help[k.substring(1)] || ENV.acts?.[k.slice(5)]?.name, _pretty = (o) => JSON.stringify(o, null, 2);
 
 // src/utils/utils.js
 function renderHTML(body) {
@@ -1077,7 +1046,7 @@ async function msgHandleGroupMessage(message, context) {
     return null;
   if (message.reply_to_message?.from.is_bot && `${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId)
     throw await sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: 
-https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`), new Error(`Not supported message type: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
+https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`), new Error(`405 Not Allowed: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
   let mentioned = await mentionBotUsername(message, context);
   if (!mentioned)
     throw new Error("No mentioned");
