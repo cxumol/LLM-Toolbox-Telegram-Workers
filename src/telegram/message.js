@@ -104,7 +104,7 @@ async function msgHandleGroupMessage(message, context) {
     // https://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots
     if ( (message.reply_to_message?.from.is_bot) && (`${message.reply_to_message?.from.id}` !== context.SHARE_CONTEXT.currentBotId) ){
         await sendMessageToTelegramWithContext(context)(`Don't reply to a bot. Reason: \nhttps://core.telegram.org/bots/faq#why-doesn-39t-my-bot-see-messages-from-other-bots`);
-        throw new Error(`Not supported message type: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
+        throw new Error(`405 Not Allowed: reply to a bot. reply_to: ${message.reply_to_message?.from.id} currentBotId: ${context.SHARE_CONTEXT.currentBotId}`);
     } 
     
     const mentioned = await mentionBotUsername(message, context);

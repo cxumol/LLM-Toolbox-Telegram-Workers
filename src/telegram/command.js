@@ -91,13 +91,17 @@ const commandHandlers = {
 const commandSortList = Object.keys(commandHandlers).filter((key)=>!['/start','/img'].includes(key)); //.sort((a, b) => a.length - b.length);
 
 /* init dynamic commands */
-function initDynamicCommands() {
-    registerActCommands();
+function initDynamicCommands(context) {
+    registerActCommands(context);
 }
 
 /* register /act_* commands */
-function registerActCommands() {
-    Object.keys(ENV.I18N.acts).forEach((act) => {
+function registerActCommands(context) {
+    ENV.acts = {};
+    Object.assign(ENV.acts, ENV.I18N.acts);
+    Object.assign(ENV.acts, context?.USER_CONFIG?.MY_ACTIONS || ENV?.USER_CONFIG?.MY_ACTIONS);
+    /*debug*/ // console.log("debug registerActCommands:", _pretty(context.USER_CONFIG), "merged", ENV.acts);
+    Object.keys(ENV.acts).forEach((act) => {
         commandHandlers[`/act_${act}`] = {
             scopes: scopeFull,
             fn: commandActWithLLM,
@@ -145,7 +149,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
 async function commandGetHelp(message, command, subcommand, context) {
     let helpSections = [
         ENV.I18N.command.help.summary,
-        ...Object.keys(commandHandlers).map(key => `${key.replaceAll('_', `\\_`)}：${ENV.I18N.command.help[key.substring(1)] || ENV.I18N.acts[key.slice('/act_'.length)]?.name}`),
+        ...Object.keys(commandHandlers).map(key => `${key.replaceAll('_', `\\_`)}：${keyDetail(key)}`),
         ...Object.keys(CUSTOM_COMMAND)
             .filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
@@ -165,7 +169,7 @@ async function commandGetHelp(message, command, subcommand, context) {
  */
 async function commandActUndefined(message, command, subcommand, context) {
     context.CURRENT_CHAT_CONTEXT.reply_markup = '{"remove_keyboard":true,"selective":true}';
-    const msgText=Object.keys(ENV.I18N.acts).map(key => `/act\\_${key}：${ENV.I18N.acts[key].name}`).join('\n');
+    const msgText=`Let LLM do it for you.\n`+Object.keys(ENV.acts).map(key => `/act\\_${key.replaceAll('_',"\\_")}：${ENV.acts[key].name}`).join('\n');
     return msgTG(context)(msgText);
 }
 
@@ -180,7 +184,7 @@ async function commandActUndefined(message, command, subcommand, context) {
  */
 async function commandActWithLLM(message, command, subcommand, context) {
     const _act = command.split('_').slice(1).join('_'); 
-    const act = ENV.I18N.acts[_act];
+    const act = ENV.acts[_act];
     if (!act) return msgTG(context)(`ERROR: action not found`);
 
     let txt = subcommand, _r = message.reply_to_message?.text;
@@ -354,7 +358,7 @@ async function commandEcho(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 export async function handleCommandMessage(message, context) {
-    initDynamicCommands();
+    initDynamicCommands(context);
 
     // 如果是开发模式，添加 /echo 命令用于调试
     if (ENV.DEV_MODE)
@@ -460,5 +464,5 @@ export function commandsDocument() {
     });
 }
 
-const keyDetail=k=>ENV.I18N.command.help[k.substring(1)] || ENV.I18N.acts?.[k.slice('/act_'.length)]?.name;
+const keyDetail=k=>ENV.I18N.command.help[k.substring(1)] || ENV.acts?.[k.slice('/act_'.length)]?.name;
 const _pretty=o=>JSON.stringify(o, null, 2);

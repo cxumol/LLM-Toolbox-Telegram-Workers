@@ -2,18 +2,10 @@ import {
     sendChatActionToTelegramWithContext,
     sendMessageToTelegramWithContext as msgTG,
 } from '../telegram/telegram.js';
-import {DATABASE, ENV} from '../config/env.js';
+import {ENV} from '../config/env.js';
 import {loadChatLLM} from "./agents.js";
 import "../types/agent.js";
 
-/**
- * @return {(function(string): number)}
- */
-function tokensCounter() {
-    return (text) => {
-        return text.length;
-    };
-}
 
 
 

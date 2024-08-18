@@ -5,7 +5,7 @@
  *
  * @property {string[]} DEFINE_KEYS
  * 
- * @property {Object.<string, ActionType>} CUSTOM_ACTTIONS
+ * @property {Object.<string, ActionType>} MY_ACTIONS
  *
  * @property {string} AI_PROVIDER
  * @property {string} AI_IMAGE_PROVIDER

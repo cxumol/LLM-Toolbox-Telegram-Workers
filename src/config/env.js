@@ -19,7 +19,7 @@ export class UserConfig {
     // 全局默认初始化消息角色
     SYSTEM_INIT_MESSAGE_ROLE = 'system';
     // 自定义动作
-    CUSTOM_ACTTIONS = {};
+    MY_ACTIONS = {};
 
     // -- Open AI 配置 --
     //
@@ -167,7 +167,7 @@ export function mergeEnvironment(target, source) {
         // 只合并两边都有的
         if (!Object.hasOwn(source,key)) continue;
         
-        const t = ENV_TYPES[key] || typeof target[key];
+        let t = ENV_TYPES[key] || Array.isArray(target[key]) ? 'array' : typeof target[key];
         const v = source[key];
         // 不是字符串直接赋值
         if (t==='string' || typeof v !== 'string') {
@@ -190,7 +190,8 @@ export function mergeEnvironment(target, source) {
                 break;
             case 'object':
                 try {
-                    target[key] = JSON.parse(v);
+                    // target[key] = JSON.parse(v);
+                    Object.assign(target[key], JSON.parse(v));
                 } catch (e) {
                     console.error(e);
                 }
