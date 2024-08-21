@@ -40,9 +40,9 @@ var UserConfig = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723960092;
+  BUILD_TIMESTAMP = 1724208923;
   // 当前版本 commit id
-  BUILD_VERSION = "8239b54";
+  BUILD_VERSION = "69b94aa";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -140,7 +140,7 @@ function mergeEnvironment(target, source) {
         break;
       case "array":
         try {
-          target[key] = JSON.parse(v);
+          target[key] = v.startsWith("[") ? JSON.parse(v) : v.split(",");
         } catch {
           target[key] = v.split(",");
         }
