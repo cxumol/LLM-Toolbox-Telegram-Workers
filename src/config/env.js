@@ -183,7 +183,7 @@ export function mergeEnvironment(target, source) {
                 break;
             case 'array':
                 try {
-                    target[key] = JSON.parse(v);
+                    target[key] = v.startsWith('[') ? JSON.parse(v): v.split(',');
                 } catch {
                     target[key] = v.split(',');
                 }
