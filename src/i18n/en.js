@@ -30,7 +30,7 @@ export default {
     },
     "help": {
       "name": "Request Assistance",
-      "prompt": "You are a helpful assistant, ready to fulfill requests."
+      "prompt": "You are a helpful assistant."
     },
     "skim": {
       "name": "Summarize",
