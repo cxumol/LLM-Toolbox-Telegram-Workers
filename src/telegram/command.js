@@ -54,13 +54,6 @@ const commandHandlers = {
         fn: commandActUndefined,
         needAuth: cmdAuthReq.shareModeGroup,
     },
-    /*
-    '/img': {
-        scopes: scopeMod,
-        fn: commandGenerateImg,
-        needAuth: cmdAuthReq.shareModeGroup,
-    },
-    */
     '/mod_env_set': {
         scopes: scopeMod,
         fn: commandUpdateUserConfig,
@@ -87,6 +80,14 @@ const commandHandlers = {
         needAuth: cmdAuthReq.default,
     },
 };
+
+    /*
+    '/img': {
+        scopes: scopeMod,
+        fn: commandGenerateImg,
+        needAuth: cmdAuthReq.shareModeGroup,
+    },
+    */
 
 const commandSortList = Object.keys(commandHandlers).filter((key)=>!['/start','/img'].includes(key)); //.sort((a, b) => a.length - b.length);
 
@@ -150,8 +151,7 @@ async function commandGetHelp(message, command, subcommand, context) {
     let helpSections = [
         ENV.I18N.command.help.summary,
         ...Object.keys(commandHandlers).map(key => `${key.replaceAll('_', `\\_`)}：${keyDetail(key)}`),
-        ...Object.keys(CUSTOM_COMMAND)
-            .filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
+        ...Object.keys(CUSTOM_COMMAND).filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
     ];
 
@@ -316,15 +316,14 @@ async function commandSystem(message, command, subcommand, context) {
 
     let msg = `AGENT: ${_pretty(agent)}\n`;
     if (ENV.DEV_MODE) {
-        function redact(config){
-            const redacted = {...config};
-            for (const key in redacted) {
-                if (/api|token|account|key/i.test(key)) config[key] = '******';
+        function redact(cfg){
+            const ret = {...cfg};
+            for (const key in ret) {
+                if (/api|token|account|key/i.test(key)) ret[key] = '******';
             }
-            return redacted;
+            return ret;
         };
-        const shareCtx = {...context.SHARE_CONTEXT};
-        shareCtx.currentBotToken = '******';
+        const shareCtx = { ...context.SHARE_CONTEXT, currentBotToken: '******' };
 
         msg += `<pre>\nUSER_CONFIG: ${_pretty(trimUserConfig(redact(context.USER_CONFIG)))}\n`;
         msg += `CHAT_CONTEXT: ${_pretty(context.CURRENT_CHAT_CONTEXT)}\n`;
@@ -360,22 +359,18 @@ async function commandEcho(message, command, subcommand, context) {
 export async function handleCommandMessage(message, context) {
     initDynamicCommands(context);
 
-    // 如果是开发模式，添加 /echo 命令用于调试
     if (ENV.DEV_MODE)
         commandHandlers['/echo'] = { help: '[DEBUG ONLY] echo message', scopes: scopeMod, fn: commandEcho, needAuth: cmdAuthReq.default };
 
-    // 检查是否有自定义 alias
+    // CUSTOM_COMMAND alias
     if (CUSTOM_COMMAND[message.text]) message.text = CUSTOM_COMMAND[message.text];
 
-    // 查找匹配的命令
     const command = Object.keys(commandHandlers).find(key => message.text === key || message.text.startsWith(key + ' ') || message.text.startsWith(key + '@'));
     if (!command) return null;
 
-    // 提取子命令, 执行命令函数
     const handler = commandHandlers[command];
     try {
-        // 如果存在权限条件，进行权限验证
-        if (handler.needAuth) {
+        if (handler.needAuth) { // 如果存在权限条件，进行权限验证
             const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
             if (roleList) {
                 const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
@@ -434,8 +429,7 @@ export async function bindCommandForTelegram(token) {
     const result = {};
     // 发送命令到Telegram
     for (const scope in scopeCommandMap) {
-        result[scope] = await fetch(
-            `https://api.telegram.org/bot${token}/setMyCommands`, {
+        result[scope] = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -445,8 +439,7 @@ export async function bindCommandForTelegram(token) {
                     })),
                     scope: {type: scope},
                 }),
-            },
-        ).then(res => res.json());
+            }).then(res => res.json());
     }
     return {ok: true, result, scopeCommandMap: scopeCommandMap};
 }
@@ -456,12 +449,7 @@ export async function bindCommandForTelegram(token) {
  * @return {{description: *, command: *}[]}
  */
 export function commandsDocument() {
-    return Object.keys(commandHandlers).map((key) => {
-        return {
-            command: key,
-            description: keyDetail(key),
-        };
-    });
+    return Object.keys(commandHandlers).map(key => ({ command: key, description: keyDetail(key) }));
 }
 
 const keyDetail=k=>ENV.I18N.command.help[k.substring(1)] || ENV.acts?.[k.slice('/act_'.length)]?.name;
