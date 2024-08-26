@@ -126,7 +126,7 @@ function registerActCommands(context) {
 /*
 async function commandGenerateImg(message, command, subcommand, context) {
     if (subcommand === '')
-        return msgTG(context)(ENV.I18N.command.help.img);
+        return msgTG(context)(ENV.I18N.help.img);
 
     const gen = loadImageGen(context)?.request;
     if (!gen) return msgTG(context)(`ERROR: Image generator not found`);
@@ -149,7 +149,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
  */
 async function commandGetHelp(message, command, subcommand, context) {
     let helpSections = [
-        ENV.I18N.command.help.summary,
+        ENV.I18N.help.summary,
         ...Object.keys(commandHandlers).map(key => `${key.replaceAll('_', `\\_`)}：${keyDetail(key)}`),
         ...Object.keys(CUSTOM_COMMAND).filter(key => CUSTOM_COMMAND_DESCRIPTION[key])
             .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
@@ -452,5 +452,5 @@ export function commandsDocument() {
     return Object.keys(commandHandlers).map(key => ({ command: key, description: keyDetail(key) }));
 }
 
-const keyDetail=k=>ENV.I18N.command.help[k.substring(1)] || ENV.acts?.[k.slice('/act_'.length)]?.name;
+const keyDetail=k=>ENV.I18N.help[k.substring(1)] || ENV.acts?.[k.slice('/act_'.length)]?.name;
 const _pretty=o=>JSON.stringify(o, null, 2);
