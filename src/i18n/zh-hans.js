@@ -3,17 +3,15 @@ export default {
   "env": {
     "system_init_message": "你是得力助手"
   },
-  "command": {
-    "help": {
-      "summary": "所有指令：\n",
-      "help": "查看可用指令。",
-      "act": "选择要执行的操作。",
-      "mod_env_set": "设置用户配置，`/mod_env_set KEY=VALUE`。",
-      "mod_env_set_batch": "批量设置用户配置，`/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`。",
-      "mod_env_del": "删除用户配置，`/mod_env_del MY_KEY1`。",
-      "mod_env_del_all": "清除所有用户配置。",
-      "mod_system": "显示系统信息。"
-    }
+  "help": {
+    "summary": "所有指令：\n",
+    "help": "查看可用指令。",
+    "act": "选择要执行的操作。",
+    "mod_env_set": "设置用户配置，`/mod_env_set KEY=VALUE`。",
+    "mod_env_set_batch": "批量设置用户配置，`/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`。",
+    "mod_env_del": "删除用户配置，`/mod_env_del MY_KEY1`。",
+    "mod_env_del_all": "清除所有用户配置。",
+    "mod_system": "显示系统信息。"
   },
   "acts": {
     "flatter": {

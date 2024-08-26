@@ -3,17 +3,15 @@ export default {
   "env": {
     "system_init_message": "You are a helpful assistant"
   },
-  "command": {
-    "help": {
-      "summary": "Commands in all:\n",
-      "help": "Seek guidance on available commands.",
-      "act": "Select desired action to perform.",
-      "mod_env_set": "Set a user cfg, `/mod_env_set KEY=VALUE`.", 
-      "mod_env_set_batch": "Set multiple user cfg, `/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`.",
-      "mod_env_del": "Remove user cfg, `/mod_env_del MY_KEY1`.", 
-      "mod_env_del_all": "Purge all user config.", 
-      "mod_system": "Show some system info."
-    }
+  "help": {
+    "summary": "Commands in all:\n",
+    "help": "Seek guidance on available commands.",
+    "act": "Select desired action to perform.",
+    "mod_env_set": "Set a user cfg, `/mod_env_set KEY=VALUE`.", 
+    "mod_env_set_batch": "Set multiple user cfg, `/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`.",
+    "mod_env_del": "Remove user cfg, `/mod_env_del MY_KEY1`.", 
+    "mod_env_del_all": "Purge all user config.", 
+    "mod_system": "Show some system info."
   },
   "acts": {
     "flatter": {
