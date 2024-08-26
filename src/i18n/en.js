@@ -5,16 +5,14 @@ export default {
   },
   "command": {
     "help": {
-      "summary": "The following commands are currently supported:\n",
+      "summary": "Commands in all:\n",
       "help": "Seek guidance on available commands.",
-      "start": "Initiate a new conversation and obtain your unique identifier.",
-      "act": "Select the desired action you wish to perform.", 
-      "img": "Conjure an image, for example, `/img beach at moonlight`.",
-      "mod_env_set": "Set a user configuration, `/mod_env_set KEY=VALUE`.", 
-      "mod_env_set_batch": "Set multiple user configurations, `/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`.",
-      "mod_env_del": "Remove a user configuration, `/mod_env_del MY_KEY1`.", 
-      "mod_env_del_all": "Purge all user configurations.", 
-      "mod_system": "Unveil insights into the system."
+      "act": "Select desired action to perform.",
+      "mod_env_set": "Set a user cfg, `/mod_env_set KEY=VALUE`.", 
+      "mod_env_set_batch": "Set multiple user cfg, `/mod_env_set_batch {\"KEY1\": \"VALUE1\", \"KEY2\": \"VALUE2\"}`.",
+      "mod_env_del": "Remove user cfg, `/mod_env_del MY_KEY1`.", 
+      "mod_env_del_all": "Purge all user config.", 
+      "mod_system": "Show some system info."
     }
   },
   "acts": {
