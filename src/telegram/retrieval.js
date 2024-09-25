@@ -43,7 +43,7 @@ export async function retrieveUrlTxt(link){
 async function mediumGrab(url){
     const newlink = proxy["medium"] + encodeURIComponent(url.origin + url.pathname);
     let txt = await fetch(newlink).then(r=>r.text());
-    txt = txt.slice(txt.indexOf('smry · '));
+    txt = txt.slice(txt.indexOf('Markdown Content:'));
     return txt.slice(txt.indexOf('\n')+1).trim();
 }
 
