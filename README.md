@@ -1,55 +1,39 @@
 
 <h1 align="center">
-ChatGPT-Telegram-Workers
+LLM-Toolbox-Telegram-Workers
 </h1>
 
 <p align="center">
-    <br> English | <a href="README_CN.md">中文</a>
-</p>
-<p align="center">
-    <em>Deploy your own Telegram ChatGPT bot on Cloudflare Workers with ease.</em>
+    <em>LLM Toolbox as a Telegram bot, deploying on Cloudflare Workers with ease.</em>
 </p>
 
-## About
+## Make Your Friends Blush (or Squirm!) with the ActGPT Telegram Bot!
 
-The simplest and fastest way to deploy your own ChatGPT Telegram bot. Use Cloudflare Workers, single file, copy and paste directly, no dependencies required, no need to configure local development environment, no domain name required, serverless.
+This project, forked from [ChatGPT-Telegram-Workers](https://github.com/TBXark/ChatGPT-Telegram-Workers/) v1.7.0, transforms your Telegram bot into a playful agent of flattery, criticism, and much more!  Instead of multi-turn chats, this bot focuses on single-turn actions triggered by commands, allowing you to inject humor and spice into your group conversations.
 
-You can customize the system initialization information so that your debugged personality never disappears.
+**Key Features:**
 
-<details>
-<summary>example</summary>
-<img style="max-width: 600px;" alt="image" src="./doc/demo.jpg">
-</details>
+* **Praise and Playful Prodding:**  Flatter your friends with `/act_flatter@mybot` or unleash some (stern) criticism with `/act_criticize@mybot` directly within your Telegram group.
+* **A Multitude of Actions:**  Beyond flattery and criticism, explore a wide range of preset actions like "flirt", "skim", and "explain" to engage with your friends in unique ways.
+* **Truth Seeker & Scam Detector:** Use commands like `/act_chktruth@mybot`, `/act_checkscam@mybot`, and `/act_skim@mybot` to analyze Twitter (X) tweets, Medium articles, or other online content for veracity, potential scams, and quick summaries.
+* **Customizable Actions:**  Personalize your bot experience! Add your own defined actions, both as a user and as the bot administrator.
 
-## Features
+**Key Differences from Upstream:**
 
-- Serverless deployment
-- Multi-platform deployment support (Cloudflare Workers, Vercel, Render[...](doc/en/PLATFORM.md))
-- Adaptation to multiple AI service providers (OpenAI, Azure OpenAI, Cloudflare AI, Cohere, Anthropic, Mistral...)
-- Custom commands (can achieve quick switching of models, switching of robot presets)
-- Support for multiple Telegram bots
-- Streaming output
-- Multi-language support
-- Text-to-image generation
+This fork significantly deviates from the original `ChatGPT-Telegram-Workers` project.  The core functionality has been shifted from multi-turn conversations to single-turn actions, enabling a distinct and more dynamic user experience.  Therefore, ongoing synchronization with the upstream repository is not maintained.
 
-## Documentation
+## Getting Started
 
-- [How to deploy](./doc/en/DEPLOY.md)
-- [How to set up configuration](./doc/en/CONFIG.md)
-- [Automatic update](./doc/en/ACTION.md)
-- [Support Platform](./doc/en/PLATFORM.md)
-- [Changelog](./doc/en/CHANGELOG.md)
+Please refer to [Deploy](./doc/en/DEPLOY.md) and [Platform](./doc/en/DEPLOY.md) from the original `ChatGPT-Telegram-Workers` project.  
+Please note that things may have changed since the fork. 
+On this fork, only deployment on Clouflare Workers is tested.
 
-## Special thanks
 
-![https://www.jetbrains.com/?from=tbxark](https://user-images.githubusercontent.com/9513891/236592683-1ea579cf-08ff-4703-b313-db038f62bab0.svg)
 
-Thanks for the open-source development license provided by [JetBrains](https://www.jetbrains.com/?from=tbxark).
+## Contributing
 
-## Contributors
-
-This project exists thanks to all the people who contribute. [Contribute](https://github.com/tbxark/ChatGPT-Telegram-Workers/graphs/contributors).
+Contributions are welcomed.
 
 ## License
 
-**ChatGPT-Telegram-Workers** is released under the MIT license. [See LICENSE](LICENSE) for details.
+[MIT License](./LICENSE)

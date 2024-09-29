@@ -1,3 +1,6 @@
+> [!WARNING]
+> The document is AI generated, and I have no time to proofread it. Please create an issue or tell me if you find any errors.
+
 # Configuration
 
 It is recommended to fill in environment variables in the Workers configuration interface instead of directly modifying variables in the JS code.
@@ -18,9 +21,11 @@ An empty string in the array indicates that no value has been set. If a value ne
 
 | KEY                       | Name                      | Default  | Description                               |
 |---------------------------|---------------------------|----------|-------------------------------------------|
-| LANGUAGE                  | Language                  | `zh-cn`  | Menu language                             |
+| LANGUAGE                  | Language                  | `en`     | Menu language                             |
 | UPDATE_BRANCH             | Update branch             | `master` | Check the branch for updates              |
 | CHAT_COMPLETE_API_TIMEOUT | Chat complete API timeout | `0`      | Timeout for AI conversation API (seconds) |
+| TELEGRAM_MIN_STREAM_INTERVAL | Telegram minimum stream interval | `0` | Minimum message stream interval for Telegram (milliseconds) |
+
 
 ### Telegram configuration
 
@@ -65,16 +70,17 @@ An empty string in the array indicates that no value has been set. If a value ne
 
 ## User configuration
 
-Each user's custom configuration can only be modified by sending a message through Telegram. The message format is `/setenv KEY=VALUE`. User configurations have a higher priority than system configurations. If you want to delete a configuration, please use `/delenv KEY`. To set variables in batches, please use `/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}`.
+Each user's custom configuration can only be modified by sending a message through Telegram. The message format is `/mod_env_set KEY=VALUE`. User configurations have a higher priority than system configurations. If you want to delete a configuration, please use `/mod_env_del KEY`. To set variables in batches, please use `/mod_env_set_batch {"KEY1": "VALUE1", "KEY2": "VALUE2"}`.
 
 ### General configuration
 
-| KEY                      | Name                                 | Default                       | Description                                                                |
-|--------------------------|--------------------------------------|-------------------------------|----------------------------------------------------------------------------|
-| AI_PROVIDER              | AI provider                          | `auto`                        | Options `auto, openai, azure, workers, gemini, mistral, cohere, anthropic` |
-| AI_IMAGE_PROVIDER        | AI image provider                    | `auto`                        | Options `auto, openai, azure, workers`                                     |
-| SYSTEM_INIT_MESSAGE      | Default initialization message.      | `You are a helpful assistant` | Automatically select default values based on the bound language.           |
-| SYSTEM_INIT_MESSAGE_ROLE | Default initialization message role. | `system`                      |                                                                            |
+| KEY                      | Name                                 | Default                       | Description                                                                                                |
+|--------------------------|--------------------------------------|-------------------------------|------------------------------------------------------------------------------------------------------------|
+| AI_PROVIDER              | AI provider                          | `auto`                        | Options `auto, openai, azure, workers` |
+| AI_IMAGE_PROVIDER        | AI image provider                    | `auto`                        | Options `auto, openai, azure, workers` |
+| SYSTEM_INIT_MESSAGE      | Default initialization message.      | `You are a helpful assistant` | Automatically select default values based on the bound language.                                          |
+| SYSTEM_INIT_MESSAGE_ROLE | Default initialization message role. | `system`                      |                                                                                                           |
+| MY_ACTIONS              | Custom Actions                       | `{}`                          |  Custom actions that can be triggered by `/act` command. See [Custom Actions](#custom-actions) for more details. |
 
 ### OpenAI
 
@@ -84,10 +90,6 @@ Each user's custom configuration can only be modified by sending a message throu
 | OPENAI_CHAT_MODEL       | OpenAI Model            | `gpt-3.5-turbo`             |
 | OPENAI_API_BASE         | OpenAI API BASE         | `https://api.openai.com/v1` |
 | OPENAI_API_EXTRA_PARAMS | OpenAI API Extra Params | `{}`                        |
-| DALL_E_MODEL            | DALL-E model name.      | `dall-e-2`                  |
-| DALL_E_IMAGE_SIZE       | DALL-E Image size       | `512x512`                   |
-| DALL_E_IMAGE_QUALITY    | DALL-E Image quality    | `standard`                  |
-| DALL_E_IMAGE_STYLE      | DALL-E Image style      | `vivid`                     |
 
 ### Azure OpenAI
 
@@ -99,7 +101,6 @@ Each user's custom configuration can only be modified by sending a message throu
 |-----------------------|-----------------------|---------|
 | AZURE_API_KEY         | Azure API Key         | `null`  |
 | AZURE_COMPLETIONS_API | Azure Completions API | `null`  |
-| AZURE_DALLE_API       | Azure DallE API       | `null`  |
 
 ### Workers
 
@@ -108,82 +109,64 @@ Each user's custom configuration can only be modified by sending a message throu
 | CLOUDFLARE_ACCOUNT_ID | Cloudflare Account ID | `null`                                         |
 | CLOUDFLARE_TOKEN      | Cloudflare Token      | `null`                                         |
 | WORKERS_CHAT_MODEL    | Text Generation Model | `@cf/mistral/mistral-7b-instruct-v0.1 `        |
-| WORKERS_IMAGE_MODEL   | Text-to-Image Model   | `@cf/stabilityai/stable-diffusion-xl-base-1.0` |
-
-### Gemini
-
-| KEY                      | Name                  | Default                                                    | 
-|--------------------------|-----------------------|------------------------------------------------------------|
-| GOOGLE_API_KEY           | Google Gemini API Key | `null`                                                     |
-| GOOGLE_COMPLETIONS_API   | Google Gemini API     | `https://generativelanguage.googleapis.com/v1beta/models/` |
-| GOOGLE_COMPLETIONS_MODEL | Google Gemini Model   | `gemini-pro`                                               |
-
-> Cloudflare Workers currently do not support accessing Gemini.
-
-### Mistral
-
-| KEY                | Name              | Default                     | 
-|--------------------|-------------------|-----------------------------|
-| MISTRAL_API_KEY    | Mistral API Key   | `null`                      |
-| MISTRAL_API_BASE   | Mistral API Base  | `https://api.mistral.ai/v1` |
-| MISTRAL_CHAT_MODEL | Mistral API Model | `mistral-tiny`              |
-
-### Cohere
-
-| KEY               | Name             | Default                     | 
-|-------------------|------------------|-----------------------------|
-| COHERE_API_KEY    | Cohere API Key   | `null`                      |
-| COHERE_API_BASE   | Cohere API Base  | `https://api.cohere.com/v1` |
-| COHERE_CHAT_MODEL | Cohere API Model | `command-r-plus`            |
-
-### Anthropic
-
-| KEY                  | Name                | Default                        | 
-|----------------------|---------------------|--------------------------------|
-| ANTHROPIC_API_KEY    | Anthropic API Key   | `null`                         |
-| ANTHROPIC_API_BASE   | Anthropic API Base  | `https://api.anthropic.com/v1` |
-| ANTHROPIC_CHAT_MODEL | Anthropic API Model | `claude-3-haiku-20240307`      |
 
 ## Command
 
-| Command    | Description                                                             | Example                                         |
-|:-----------|:------------------------------------------------------------------------|:------------------------------------------------|
-| `/help`    | Get command help.                                                       | `/help`                                         |
-| `/new`     | Initiate a new conversation.                                            | `/new`                                          |
-| `/start`   | Get your ID and start a new conversation.                               | `/start`                                        |
-| `/img`     | Generate an image.                                                      | `/img Image Description`                        |
-| `/version` | Get the current version number and determine if an update is needed.    | `/version`                                      |
-| `/setenv`  | Set user configuration, see `User Configuration` for details.           | `/setenv KEY=VALUE`                             |
-| `/setenvs` | Batch setting user configuration, see "User Configuration" for details. | `/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}` |
-| `/delenv`  | Delete user configuration.                                              | `/delenv KEY`                                   |
-| `/system`  | View some current system information.                                   | `/system`                                       |
-| `/redo`    | Edit the previous question or provide a different answer.               | `/redo Modified content.` or `/redo`            |
-| `/echo`    | Echo message, only available in development mode.                       | `/echo`                                         |
+| Command              | Description                                                             | Example                                         |
+|:---------------------|:------------------------------------------------------------------------|:------------------------------------------------|
+| `/help`              | Get command help.                                                       | `/help`                                         |
+| `/start`             | Get your ID and start a new conversation.                               | `/start`                                        |
+| `/act`               | List available custom actions.                                         | `/act`                                          |
+| `/act_{actionName}`  | Trigger a custom action.                                                | `/act_flatter You are awesome!`                  |
+| `/mod_env_set`      | Set user configuration, see `User Configuration` for details.           | `/mod_env_set KEY=VALUE`                             |
+| `/mod_env_set_batch` | Batch setting user configuration, see "User Configuration" for details. | `/mod_env_set_batch {"KEY1": "VALUE1", "KEY2": "VALUE2"}` |
+| `/mod_env_del`      | Delete user configuration.                                              | `/mod_env_del KEY`                                   |
+| `/mod_env_del_all`   | Clear all user configuration.                                          | `/mod_env_del_all`                                 |
+| `/mod_system`        | View some current system information.                                   | `/mod_system`                                       |
+| `/redo`              | Edit the previous question or provide a different answer.               | `/redo Modified content.` or `/redo`            |
+| `/echo`              | Echo message, only available in development mode.                       | `/echo`                                         |
 
-## Custom command
+## Custom Actions
+
+Custom actions can be defined in the `MY_ACTIONS` environment variable. Each action consists of a name and a prompt. The name is used to trigger the action using the `/act_{actionName}` command, and the prompt is used as the system prompt for the LLM when the action is triggered.
+
+For example, to define an action named "translate" that translates English text to Chinese, you can set the `MY_ACTIONS` environment variable as follows:
+
+```json
+{
+  "translate": {
+    "name": "Translate to Chinese",
+    "prompt": "You are a translator. Please translate the following English text to Chinese."
+  }
+}
+```
+
+This will allow you to use the command `/act_translate Hello, world!` to translate "Hello, world!" to Chinese.
+
+## Custom commands
 
 In addition to the commands defined by the system, you can also customize shortcut commands, which can simplify some longer commands into a single word command.
 
-Custom commands use environment variables to set CUSTOM_COMMAND_XXX, where XXX is the command name, such as `CUSTOM_COMMAND_azure`, and the value is the command content, such as `/setenvs {"AI_PROVIDER": "azure"}`. This allows you to use `/azure` instead of `/setenvs {"AI_PROVIDER": "azure"}` to quickly switch AI providers.
+Custom commands use environment variables to set CUSTOM_COMMAND_XXX, where XXX is the command name, such as `CUSTOM_COMMAND_azure`, and the value is the command content, such as `/mod_env_set_batch {"AI_PROVIDER": "azure"}`. This allows you to use `/azure` instead of `/mod_env_set_batch {"AI_PROVIDER": "azure"}` to quickly switch AI providers.
 
 Here are some examples of custom commands.
 
 | Command                | Value                                                                                                             |
 |------------------------|-------------------------------------------------------------------------------------------------------------------|
-| CUSTOM_COMMAND_azure   | `/setenvs {"AI_PROVIDER": "azure"}`                                                                               |
-| CUSTOM_COMMAND_workers | `/setenvs {"AI_PROVIDER": "workers"}`                                                                             |
-| CUSTOM_COMMAND_gpt3    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}`                                        |
-| CUSTOM_COMMAND_gpt4    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}`                                                |
-| CUSTOM_COMMAND_cn2en   | `/setenvs {"SYSTEM_INIT_MESSAGE": "You are a translator. Please translate everything I say below into English."}` |
+| CUSTOM_COMMAND_azure   | `/mod_env_set_batch {"AI_PROVIDER": "azure"}`                                                                               |
+| CUSTOM_COMMAND_workers | `/mod_env_set_batch {"AI_PROVIDER": "workers"}`                                                                             |
+| CUSTOM_COMMAND_gpt3    | `/mod_env_set_batch {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}`                                        |
+| CUSTOM_COMMAND_gpt4    | `/mod_env_set_batch {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}`                                                |
+| CUSTOM_COMMAND_cn2en   | `/mod_env_set_batch {"SYSTEM_INIT_MESSAGE": "You are a translator. Please translate everything I say below into English."}` |
 
 If you are using TOML for configuration, you can use the following method:
 
 ```toml
-CUSTOM_COMMAND_azure= '/setenvs {"AI_PROVIDER": "azure"}'
-CUSTOM_COMMAND_workers = '/setenvs {"AI_PROVIDER": "workers"}'
-CUSTOM_COMMAND_gpt3 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}'
-CUSTOM_COMMAND_gpt4 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}'
-CUSTOM_COMMAND_cn2en = '/setenvs {"SYSTEM_INIT_MESSAGE": "You are a translator. Please translate everything I say below into English."}'
+CUSTOM_COMMAND_azure= '/mod_env_set_batch {"AI_PROVIDER": "azure"}'
+CUSTOM_COMMAND_workers = '/mod_env_set_batch {"AI_PROVIDER": "workers"}'
+CUSTOM_COMMAND_gpt3 = '/mod_env_set_batch {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}'
+CUSTOM_COMMAND_gpt4 = '/mod_env_set_batch {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}'
+CUSTOM_COMMAND_cn2en = '/mod_env_set_batch {"SYSTEM_INIT_MESSAGE": "You are a translator. Please translate everything I say below into English."}'
 ```
 
 ## Custom commands description
