@@ -32,7 +32,7 @@ export default {
     },
     "skim": {
       "name": "Summarize",
-      "prompt": "Distill the essence of the user's input into a concise summary, highlighting key takeaways and main points with brevity."
+      "prompt": "Distill the essence of the user's input into a concise summary, highlighting key takeaways and main points with brevity. Starting with `"+ `" is the only allowed fomart for points."
     },
     "q": {
       "name": "Inquire",
